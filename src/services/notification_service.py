@@ -1,9 +1,10 @@
-import smtplib
-import json
 import requests
+import json
+import os
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
 from src.models.contract import Contract, Notification, db
 from src.services.logging_config import get_structured_logger
 
@@ -16,59 +17,56 @@ class NotificationService:
             self.init_app(app)
 
     def init_app(self, app):
-        # Email configuration
-        self.smtp_server = app.config.get("SMTP_SERVER", "smtp.gmail.com")
-        self.smtp_port = app.config.get("SMTP_PORT", 587)
-        self.email_user = app.config.get("EMAIL_USER", "")
-        self.email_password = app.config.get("EMAIL_PASSWORD", "")
+        """Initialize app configurations"""
+        # Resend Email configuration
+        self.resend_api_key = app.config.get("RESEND_API_KEY", os.getenv("RESEND_API_KEY"))
 
         # Firebase Cloud Messaging configuration
         self.fcm_server_key = app.config.get("FCM_SERVER_KEY", "")
         self.fcm_url = "https://fcm.googleapis.com/fcm/send"
 
     def send_email_notification(self, to_email, subject, body, contract_id=None):
-        """Send email notification"""
+        """Send email notification using Resend API"""
         try:
             self.logger.info(
                 "Sending email notification",
                 context={"recipient": to_email, "contract_id": contract_id, "subject": subject},
             )
 
-            # Create message
-            msg = MIMEMultipart()
-            msg["From"] = self.email_user
-            msg["To"] = to_email
-            msg["Subject"] = subject
-
-            # Add body to email
-            msg.attach(MIMEText(body, "html"))
-
-            # Gmail SMTP configuration
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            server.starttls()
-            server.login(self.email_user, self.email_password)
-
-            # Send email
-            text = msg.as_string()
-            server.sendmail(self.email_user, to_email, text)
-            server.quit()
-
-            # Log notification
-            if contract_id:
-                notification = Notification(
-                    contract_id=contract_id,
-                    notification_type="email",
-                    status="sent",
-                    message=f"Email sent to {to_email}",
-                )
-                db.session.add(notification)
-                db.session.commit()
-
-            self.logger.info(
-                "Email notification sent successfully",
-                context={"recipient": to_email, "contract_id": contract_id},
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {self.resend_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "from": "Muraai <onboarding@resend.dev>",  # Update as needed
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": body
+                },
+                timeout=30
             )
-            return True, "Email sent successfully"
+
+            if response.status_code in (200, 201):
+                # Log successful notification
+                if contract_id:
+                    notification = Notification(
+                        contract_id=contract_id,
+                        notification_type="email",
+                        status="sent",
+                        message=f"Email sent to {to_email}",
+                    )
+                    db.session.add(notification)
+                    db.session.commit()
+
+                self.logger.info(
+                    "Email notification sent successfully",
+                    context={"recipient": to_email, "contract_id": contract_id},
+                )
+                return True, "Email sent successfully"
+            else:
+                raise Exception(f"Resend API failed with status {response.status_code}: {response.text}")
 
         except Exception as e:
             self.logger.error(
@@ -98,7 +96,8 @@ class NotificationService:
         """Send mobile push notification via Firebase Cloud Messaging"""
         try:
             self.logger.info(
-                "Sending push notification", context={"contract_id": contract_id, "title": title}
+                "Sending push notification",
+                context={"contract_id": contract_id, "title": title}
             )
 
             headers = {
@@ -123,7 +122,6 @@ class NotificationService:
             response = requests.post(self.fcm_url, headers=headers, data=json.dumps(payload))
 
             if response.status_code == 200:
-                # Log successful notification
                 if contract_id:
                     notification = Notification(
                         contract_id=contract_id,
@@ -135,11 +133,12 @@ class NotificationService:
                     db.session.commit()
 
                 self.logger.info(
-                    "Push notification sent successfully", context={"contract_id": contract_id}
+                    "Push notification sent successfully",
+                    context={"contract_id": contract_id}
                 )
                 return True, "Push notification sent successfully"
             else:
-                raise Exception(f"FCM request failed with status {response.status_code}")
+                raise Exception(f"FCM request failed with status {response.status_code}: {response.text}")
 
         except Exception as e:
             self.logger.error(
@@ -151,7 +150,6 @@ class NotificationService:
                 },
             )
 
-            # Log failed notification
             if contract_id:
                 notification = Notification(
                     contract_id=contract_id,
@@ -249,7 +247,7 @@ class NotificationService:
     def check_and_send_notifications(self, user_id=None):
         """Check for contracts due for renewal and send notifications"""
         today = datetime.now().date()
-        notification_days = [30, 14, 7, 3, 1, 0]  # Days before renewal to send notifications
+        notification_days = [30, 14, 7, 3, 1, 0]
 
         results = {"emails_sent": 0, "push_notifications_sent": 0, "errors": []}
 
@@ -261,24 +259,14 @@ class NotificationService:
         for days in notification_days:
             target_date = today + timedelta(days=days)
 
-            # Find contracts due for renewal on target date
             contracts_query = Contract.query.filter(
                 Contract.renewal_date == target_date,
                 Contract.notification_enabled.is_(True),
             )
             if user_id is not None:
                 contracts_query = contracts_query.filter(Contract.user_id == user_id)
-            contracts = contracts_query.all()
 
-            if contracts:
-                self.logger.info(
-                    "Found contracts for notification",
-                    context={
-                        "days_until_renewal": days,
-                        "target_date": str(target_date),
-                        "contract_count": len(contracts),
-                    },
-                )
+            contracts = contracts_query.all()
 
             for contract in contracts:
                 try:
@@ -294,36 +282,25 @@ class NotificationService:
                         if success:
                             results["emails_sent"] += 1
                         else:
-                            error_msg = f"Email failed for contract {contract.id}: {message}"
-                            results["errors"].append(error_msg)
+                            results["errors"].append(f"Email failed for contract {contract.id}: {message}")
 
-                    # Send push notification (if mobile notifications are enabled)
-                    if contract.notification_mobile:
-                        # Note: In a real implementation, you would need to store device tokens
-                        # For now, we'll just log that a push notification would be sent
+                    # Send push notification
+                    if contract.notification_mobile and contract.device_token:  # Assuming you have device_token
+                        title = "Contract Renewal Reminder"
                         body_text = (
                             f"{contract.contract_name} renewal due in {days} days"
                             if days > 0
                             else f"{contract.contract_name} renewal is due today"
                         )
 
-                        # This would require actual device tokens in a real implementation
-                        # success, message = self.send_push_notification(device_token, title, body_text, contract.id)
-
-                        # For demo purposes, we'll create a notification record
-                        notification = Notification(
-                            contract_id=contract.id,
-                            notification_type="mobile",
-                            status="sent",
-                            message=f"Push notification scheduled: {body_text}",
+                        success, message = self.send_push_notification(
+                            contract.device_token, title, body_text, contract.id
                         )
-                        db.session.add(notification)
-                        results["push_notifications_sent"] += 1
 
-                        self.logger.info(
-                            "Push notification scheduled",
-                            context={"contract_id": contract.id, "days_until_renewal": days},
-                        )
+                        if success:
+                            results["push_notifications_sent"] += 1
+                        else:
+                            results["errors"].append(f"Push failed for contract {contract.id}: {message}")
 
                 except Exception as e:
                     error_msg = f"Error processing contract {contract.id}: {str(e)}"

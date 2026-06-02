@@ -119,33 +119,47 @@ app.register_blueprint(notification_bp, url_prefix="/api")
 #         "message": message
 #     }
 
+@app.route("/debug-resend")
+def debug_resend():
+    import os
+
+    key = os.getenv("RESEND_API_KEY")
+
+    return {
+        "exists": key is not None,
+        "prefix": key[:8] if key else None,
+        "length": len(key) if key else 0
+    }
+
 @app.route("/run-reminders", methods=["GET", "POST"])
 def run_reminders():
     results = notification_service.check_and_send_notifications()
     return results
 
-@app.route("/smtp-test")
-def smtp_test():
-    import smtplib
+
+@app.route("/test-resend")
+def test_resend():
+    import requests
     import os
 
-    try:
-        server = smtplib.SMTP(
-            os.getenv("SMTP_SERVER"),
-            int(os.getenv("SMTP_PORT"))
-        )
-        server.starttls()
-        server.login(
-            os.getenv("EMAIL_USER"),
-            os.getenv("EMAIL_PASSWORD")
-        )
-        server.quit()
+    response = requests.post(
+        "https://api.resend.com/emails",
+        headers={
+            "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "from": "Muraai <onboarding@resend.dev>",
+            "to": ["rekha.mh@muraai.com"],
+            "subject": "Resend Test",
+            "html": "<h1>Hello from Muraai</h1>"
+        }
+    )
 
-        return {"status": "SMTP OK"}
-
-    except Exception as e:
-        return {"error": str(e)}
-
+    return {
+        "status": response.status_code,
+        "response": response.text
+    }
 # Health check endpoint
 @app.route("/health", methods=["GET"])
 def health_check():
