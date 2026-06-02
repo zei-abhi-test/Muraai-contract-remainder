@@ -119,7 +119,7 @@ app.register_blueprint(notification_bp, url_prefix="/api")
 #         "message": message
 #     }
 
-@app.route("/run-reminders")
+@app.route("/run-reminders", methods=["GET", "POST"])
 def run_reminders():
     results = notification_service.check_and_send_notifications()
     return results
