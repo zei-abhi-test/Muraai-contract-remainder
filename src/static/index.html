@@ -2,13 +2,488 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Muraai Contract Renewal Reminder</title>
-    <script type="module" crossorigin src="/assets/index-M8uWMblb.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Dxzwz4ln.css">
+    <title>Muraai Contract Reminder</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --line: #d9e1ec;
+        --text: #172033;
+        --muted: #607089;
+        --accent: #0f766e;
+        --danger: #b42318;
+        --warn: #b54708;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 28px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      h3 {
+        font-size: 15px;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      section,
+      aside {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+
+      aside {
+        padding: 16px;
+      }
+
+      .content {
+        display: grid;
+        gap: 18px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .metric {
+        padding: 16px;
+        border-right: 1px solid var(--line);
+      }
+
+      .metric:last-child {
+        border-right: 0;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 28px;
+        line-height: 1.1;
+      }
+
+      .metric span,
+      label,
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+      }
+
+      input,
+      textarea,
+      button {
+        width: 100%;
+        min-height: 38px;
+        border-radius: 6px;
+        font: inherit;
+      }
+
+      input,
+      textarea {
+        border: 1px solid var(--line);
+        padding: 8px 10px;
+        background: #ffffff;
+      }
+
+      textarea {
+        min-height: 74px;
+        resize: vertical;
+      }
+
+      button {
+        cursor: pointer;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #ffffff;
+        padding: 8px 12px;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        background: #ffffff;
+        color: var(--accent);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .status {
+        display: inline-block;
+        min-width: 76px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+        background: #e7f5f2;
+        color: var(--accent);
+      }
+
+      .status.overdue {
+        background: #fee4e2;
+        color: var(--danger);
+      }
+
+      .status.upcoming {
+        background: #fef0c7;
+        color: var(--warn);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .notice {
+        min-height: 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 860px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .metric {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <header>
+      <div>
+        <h1>Muraai Contract Reminder</h1>
+        <p class="muted" id="sessionLabel">Not signed in</p>
+      </div>
+      <button class="secondary hidden" id="logoutButton" type="button">Sign out</button>
+    </header>
+
+    <main>
+      <aside>
+        <h2>Access</h2>
+        <p class="notice" id="authNotice"></p>
+        <form id="authForm">
+          <label>
+            Username
+            <input id="username" autocomplete="username" placeholder="john_doe" />
+          </label>
+          <label>
+            Email
+            <input id="email" type="email" autocomplete="email" required placeholder="john@example.com" />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" autocomplete="current-password" required />
+          </label>
+          <div class="grid">
+            <button type="submit" data-mode="login">Login</button>
+            <button class="secondary" type="submit" data-mode="register">Register</button>
+          </div>
+        </form>
+      </aside>
+
+      <div class="content">
+        <section>
+          <div class="section-header">
+            <h2>Dashboard</h2>
+            <button class="secondary" id="refreshButton" type="button">Refresh</button>
+          </div>
+          <div class="metrics">
+            <div class="metric">
+              <strong id="totalContracts">0</strong>
+              <span>Total contracts</span>
+            </div>
+            <div class="metric">
+              <strong id="upcomingContracts">0</strong>
+              <span>Upcoming renewals</span>
+            </div>
+            <div class="metric">
+              <strong id="overdueContracts">0</strong>
+              <span>Overdue renewals</span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-header">
+            <h2>Add Contract</h2>
+            <p class="notice" id="contractNotice"></p>
+          </div>
+          <form id="contractForm" style="padding: 16px">
+            <div class="grid">
+              <label>
+                Company
+                <input id="companyName" required />
+              </label>
+              <label>
+                Contract
+                <input id="contractName" required />
+              </label>
+              <label>
+                Start date
+                <input id="startDate" type="date" required />
+              </label>
+              <label>
+                End date
+                <input id="endDate" type="date" required />
+              </label>
+              <label>
+                Renewal date
+                <input id="renewalDate" type="date" required />
+              </label>
+              <label>
+                Notification email
+                <input id="notificationEmail" type="email" required />
+              </label>
+            </div>
+            <label>
+              Notes
+              <textarea id="notes"></textarea>
+            </label>
+            <button type="submit">Create contract</button>
+          </form>
+        </section>
+
+        <section>
+          <div class="section-header">
+            <h2>Contracts</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Contract</th>
+                <th>Company</th>
+                <th>Renewal</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="contractsTable"></tbody>
+          </table>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const state = {
+        token: localStorage.getItem("muraai_token"),
+        user: JSON.parse(localStorage.getItem("muraai_user") || "null"),
+      };
+
+      const byId = (id) => document.getElementById(id);
+
+      function headers() {
+        return {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${state.token}`,
+        };
+      }
+
+      function setSession(user, token) {
+        state.user = user;
+        state.token = token;
+        localStorage.setItem("muraai_user", JSON.stringify(user));
+        localStorage.setItem("muraai_token", token);
+        renderSession();
+        loadDashboard();
+      }
+
+      function renderSession() {
+        byId("sessionLabel").textContent = state.user
+          ? `${state.user.username} - ${state.user.email}`
+          : "Not signed in";
+        byId("logoutButton").classList.toggle("hidden", !state.user);
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, options);
+        const text = await response.text();
+        const payload = text ? JSON.parse(text) : null;
+        if (!response.ok) {
+          throw new Error(payload?.error || payload?.message || "Request failed");
+        }
+        return payload;
+      }
+
+      async function loadDashboard() {
+        if (!state.token) return;
+        const [dashboard, contracts] = await Promise.all([
+          api("/api/contracts/dashboard", { headers: headers() }),
+          api("/api/contracts", { headers: headers() }),
+        ]);
+        byId("totalContracts").textContent = dashboard.total_contracts;
+        byId("upcomingContracts").textContent = dashboard.upcoming_count;
+        byId("overdueContracts").textContent = dashboard.overdue_count;
+        renderContracts(contracts);
+      }
+
+      function renderContracts(contracts) {
+        const today = new Date().toISOString().slice(0, 10);
+        byId("contractsTable").innerHTML = contracts
+          .map((contract) => {
+            const days = Math.ceil((new Date(contract.renewal_date) - new Date(today)) / 86400000);
+            const statusClass = days < 0 ? "overdue" : days <= 30 ? "upcoming" : "";
+            const status = days < 0 ? "Overdue" : days <= 30 ? "Upcoming" : "Tracked";
+            return `
+              <tr>
+                <td><strong>${contract.contract_name}</strong><br /><span class="muted">${contract.notes || ""}</span></td>
+                <td>${contract.company_name}</td>
+                <td>${contract.renewal_date}</td>
+                <td><span class="status ${statusClass}">${status}</span></td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      byId("authForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const mode = event.submitter.dataset.mode;
+        byId("authNotice").textContent = "";
+        try {
+          const payload = {
+            email: byId("email").value,
+            password: byId("password").value,
+          };
+          if (mode === "register") {
+            payload.username = byId("username").value;
+          }
+          const result = await api(`/api/auth/${mode}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          setSession(result.user, result.token);
+        } catch (error) {
+          byId("authNotice").textContent = error.message;
+        }
+      });
+
+      byId("contractForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        byId("contractNotice").textContent = "";
+        try {
+          await api("/api/contracts", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({
+              company_name: byId("companyName").value,
+              contract_name: byId("contractName").value,
+              start_date: byId("startDate").value,
+              end_date: byId("endDate").value,
+              renewal_date: byId("renewalDate").value,
+              notification_enabled: true,
+              notification_email: byId("notificationEmail").value,
+              notification_mobile: false,
+              notes: byId("notes").value,
+            }),
+          });
+          event.target.reset();
+          byId("contractNotice").textContent = "Contract created";
+          loadDashboard();
+        } catch (error) {
+          byId("contractNotice").textContent = error.message;
+        }
+      });
+
+      byId("logoutButton").addEventListener("click", () => {
+        localStorage.removeItem("muraai_user");
+        localStorage.removeItem("muraai_token");
+        state.user = null;
+        state.token = null;
+        renderSession();
+        renderContracts([]);
+      });
+
+      byId("refreshButton").addEventListener("click", loadDashboard);
+      renderSession();
+      loadDashboard().catch(() => {});
+    </script>
   </body>
 </html>

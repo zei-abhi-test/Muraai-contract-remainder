@@ -24,6 +24,7 @@ EXPOSE 5000
 # Set environment variables
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
+ENV WEB_CONCURRENCY=1
 
 # Run the application
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "src.main:app"]
+CMD ["sh", "-c", "gunicorn -w ${WEB_CONCURRENCY} -b 0.0.0.0:5000 src.main:app"]

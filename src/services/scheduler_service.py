@@ -1,86 +1,104 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
-import logging
+from datetime import datetime, timedelta
 from src.services.notification_service import notification_service
+from src.services.logging_config import get_structured_logger
+
 
 class SchedulerService:
     def __init__(self, app=None):
         self.scheduler = None
         self.app = app
+        self.logger = get_structured_logger(__name__)
         if app:
             self.init_app(app)
-    
+
     def init_app(self, app):
         self.app = app
         self.scheduler = BackgroundScheduler()
-        
-        # Configure logging
-        logging.basicConfig(level=logging.INFO)
-        self.logger = logging.getLogger(__name__)
-        
+        self.logger = get_structured_logger(__name__)
+
         # Schedule daily notification check at 9:00 AM
         self.scheduler.add_job(
             func=self.check_and_send_notifications,
             trigger=CronTrigger(hour=9, minute=0),  # Daily at 9:00 AM
-            id='daily_notification_check',
-            name='Daily Contract Renewal Notification Check',
-            replace_existing=True
+            id="daily_notification_check",
+            name="Daily Contract Renewal Notification Check",
+            replace_existing=True,
         )
-        
+
         # Schedule weekly summary on Mondays at 8:00 AM
         self.scheduler.add_job(
             func=self.send_weekly_summary,
-            trigger=CronTrigger(day_of_week='mon', hour=8, minute=0),  # Weekly on Monday at 8:00 AM
-            id='weekly_summary',
-            name='Weekly Contract Summary',
-            replace_existing=True
+            trigger=CronTrigger(day_of_week="mon", hour=8, minute=0),  # Weekly on Monday at 8:00 AM
+            id="weekly_summary",
+            name="Weekly Contract Summary",
+            replace_existing=True,
         )
-        
+
         # Start the scheduler
         self.scheduler.start()
-        self.logger.info("Scheduler started successfully")
-        
+        self.check_and_send_notifications()
+        self.logger.info(
+            "Scheduler started successfully",
+            context={"scheduled_jobs": len(self.scheduler.get_jobs())},
+        )
+
         # Shut down the scheduler when exiting the app
         atexit.register(lambda: self.scheduler.shutdown())
-    
+
     def check_and_send_notifications(self):
         """Job function to check for contract renewals and send notifications"""
         try:
             with self.app.app_context():
-                self.logger.info("Starting daily notification check...")
+                self.logger.info("Starting daily notification check")
                 results = notification_service.check_and_send_notifications()
-                
-                self.logger.info(f"Notification check completed: {results['emails_sent']} emails sent, "
-                               f"{results['push_notifications_sent']} push notifications sent")
-                
-                if results['errors']:
-                    self.logger.error(f"Errors during notification check: {results['errors']}")
-                
+
+                self.logger.info(
+                    "Notification check completed",
+                    context={
+                        "emails_sent": results["emails_sent"],
+                        "push_notifications_sent": results["push_notifications_sent"],
+                        "errors_count": len(results.get("errors", [])),
+                    },
+                )
+
+                if results.get("errors"):
+                    self.logger.error(
+                        "Errors during notification check",
+                        context={
+                            "error_count": len(results["errors"]),
+                            "errors": results["errors"],
+                        },
+                    )
+
                 return results
         except Exception as e:
-            self.logger.error(f"Error during scheduled notification check: {str(e)}")
-            return {'error': str(e)}
-    
+            self.logger.error(
+                "Error during scheduled notification check",
+                context={"error": str(e), "exception_type": type(e).__name__},
+            )
+            return {"error": str(e)}
+
     def send_weekly_summary(self):
         """Job function to send weekly summary of upcoming renewals"""
         try:
             with self.app.app_context():
                 from src.models.contract import Contract
-                from datetime import datetime, timedelta
-                
-                self.logger.info("Starting weekly summary...")
-                
+
+                self.logger.info("Starting weekly summary")
+
                 # Get contracts due in the next 7 days
                 today = datetime.now().date()
                 next_week = today + timedelta(days=7)
-                
+
                 upcoming_contracts = Contract.query.filter(
                     Contract.renewal_date >= today,
                     Contract.renewal_date <= next_week,
-                    Contract.notification_enabled == True
+                    Contract.notification_enabled.is_(True),
                 ).all()
-                
+
                 if upcoming_contracts:
                     # Group contracts by user email
                     user_contracts = {}
@@ -89,33 +107,62 @@ class SchedulerService:
                             if contract.notification_email not in user_contracts:
                                 user_contracts[contract.notification_email] = []
                             user_contracts[contract.notification_email].append(contract)
-                    
+
                     # Send summary emails
+                    summary_count = 0
+                    failed_count = 0
                     for email, contracts in user_contracts.items():
-                        subject = f"Weekly Contract Renewal Summary - {len(contracts)} contracts due"
+                        subject = (
+                            f"Weekly Contract Renewal Summary - {len(contracts)} contracts due"
+                        )
                         body = self.create_weekly_summary_template(contracts)
-                        
+
                         success, message = notification_service.send_email_notification(
                             email, subject, body
                         )
-                        
+
                         if success:
-                            self.logger.info(f"Weekly summary sent to {email}")
+                            self.logger.info(
+                                "Weekly summary sent",
+                                context={
+                                    "recipient_email": email,
+                                    "contract_count": len(contracts),
+                                },
+                            )
+                            summary_count += 1
                         else:
-                            self.logger.error(f"Failed to send weekly summary to {email}: {message}")
-                
-                self.logger.info("Weekly summary completed")
-                
+                            self.logger.error(
+                                "Failed to send weekly summary",
+                                context={"recipient_email": email, "error": message},
+                            )
+                            failed_count += 1
+
+                    self.logger.info(
+                        "Weekly summary completed",
+                        context={
+                            "summary_count": summary_count,
+                            "failed_count": failed_count,
+                            "total_contracts": len(upcoming_contracts),
+                        },
+                    )
+                else:
+                    self.logger.info("No contracts due this week")
+
         except Exception as e:
-            self.logger.error(f"Error during weekly summary: {str(e)}")
-    
+            self.logger.error(
+                "Error during weekly summary",
+                context={"error": str(e), "exception_type": type(e).__name__},
+            )
+
     def create_weekly_summary_template(self, contracts):
         """Create HTML template for weekly summary email"""
         contract_rows = ""
         for contract in contracts:
             days_until = (contract.renewal_date - datetime.now().date()).days
-            urgency_color = "#dc2626" if days_until <= 3 else "#f59e0b" if days_until <= 7 else "#3b82f6"
-            
+            urgency_color = (
+                "#dc2626" if days_until <= 3 else "#f59e0b" if days_until <= 7 else "#3b82f6"
+            )
+
             contract_rows += f"""
             <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 12px; font-weight: bold;">{contract.contract_name}</td>
@@ -124,7 +171,7 @@ class SchedulerService:
                 <td style="padding: 12px; color: {urgency_color}; font-weight: bold;">{days_until} days</td>
             </tr>
             """
-        
+
         html_template = f"""
         <!DOCTYPE html>
         <html>
@@ -175,47 +222,48 @@ class SchedulerService:
         </body>
         </html>
         """
-        
+
         return html_template
-    
+
     def add_custom_job(self, func, trigger, job_id, name):
         """Add a custom scheduled job"""
         try:
             self.scheduler.add_job(
-                func=func,
-                trigger=trigger,
-                id=job_id,
-                name=name,
-                replace_existing=True
+                func=func, trigger=trigger, id=job_id, name=name, replace_existing=True
             )
-            self.logger.info(f"Custom job '{name}' added successfully")
+            self.logger.info("Custom job added", context={"job_id": job_id, "job_name": name})
             return True
         except Exception as e:
-            self.logger.error(f"Failed to add custom job '{name}': {str(e)}")
+            self.logger.error(
+                "Failed to add custom job",
+                context={"job_id": job_id, "job_name": name, "error": str(e)},
+            )
             return False
-    
+
     def remove_job(self, job_id):
         """Remove a scheduled job"""
         try:
             self.scheduler.remove_job(job_id)
-            self.logger.info(f"Job '{job_id}' removed successfully")
+            self.logger.info("Job removed", context={"job_id": job_id})
             return True
         except Exception as e:
-            self.logger.error(f"Failed to remove job '{job_id}': {str(e)}")
+            self.logger.error("Failed to remove job", context={"job_id": job_id, "error": str(e)})
             return False
-    
+
     def get_jobs(self):
         """Get list of all scheduled jobs"""
         jobs = []
         for job in self.scheduler.get_jobs():
-            jobs.append({
-                'id': job.id,
-                'name': job.name,
-                'next_run_time': job.next_run_time.isoformat() if job.next_run_time else None,
-                'trigger': str(job.trigger)
-            })
+            jobs.append(
+                {
+                    "id": job.id,
+                    "name": job.name,
+                    "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+                    "trigger": str(job.trigger),
+                }
+            )
         return jobs
+
 
 # Initialize the scheduler service
 scheduler_service = SchedulerService()
-

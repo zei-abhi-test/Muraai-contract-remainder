@@ -1,18 +1,41 @@
-version: '3.8'
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-muraai_contracts}
+      - POSTGRES_USER=${POSTGRES_USER:-muraai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-muraai} -d ${POSTGRES_DB:-muraai_contracts}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   muraai-app:
     build: .
     ports:
       - "5000:5000"
     environment:
       - FLASK_ENV=production
-      - SECRET_KEY=${SECRET_KEY}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - FCM_SERVER_KEY=${FCM_SERVER_KEY}
-    volumes:
-      - ./src/database:/app/src/database
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-before-production}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-muraai}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-muraai_contracts}
+      - EMAIL_USER=${EMAIL_USER:-}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
+      - FCM_SERVER_KEY=${FCM_SERVER_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5000}
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
+      - WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   nginx:
@@ -25,3 +48,6 @@ services:
     depends_on:
       - muraai-app
     restart: unless-stopped
+
+volumes:
+  postgres_data:

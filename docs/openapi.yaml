@@ -1,0 +1,223 @@
+openapi: 3.0.3
+info:
+  title: Muraai Contract Reminder API
+  version: 1.0.0
+  description: API for managing contract renewals and notifications.
+servers:
+  - url: http://localhost:5000
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Contract:
+      type: object
+      properties:
+        id:
+          type: integer
+        company_name:
+          type: string
+        contract_name:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        renewal_date:
+          type: string
+          format: date
+        notification_enabled:
+          type: boolean
+        notification_email:
+          type: string
+          format: email
+        notification_mobile:
+          type: boolean
+        notes:
+          type: string
+        user_id:
+          type: integer
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        contract_id:
+          type: integer
+        notification_type:
+          type: string
+          enum: [email, mobile]
+        status:
+          type: string
+          enum: [pending, sent, failed]
+        message:
+          type: string
+        send_date:
+          type: string
+          format: date-time
+paths:
+  /health:
+    get:
+      security: []
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy.
+  /api/auth/register:
+    post:
+      security: []
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              username: john_doe
+              email: john@example.com
+              password: securepassword123
+      responses:
+        '201':
+          description: User registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /api/auth/login:
+    post:
+      security: []
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              email: john@example.com
+              password: securepassword123
+      responses:
+        '200':
+          description: User authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /api/auth/me:
+    get:
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user.
+  /api/contracts:
+    get:
+      summary: List current user's contracts
+      parameters:
+        - name: upcoming_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Contract list.
+    post:
+      summary: Create a contract for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              company_name: Acme Corp
+              contract_name: Software License
+              start_date: '2026-01-01'
+              end_date: '2026-12-31'
+              renewal_date: '2026-12-31'
+              notification_enabled: true
+              notification_email: john@example.com
+              notification_mobile: false
+              notes: Annual renewal
+      responses:
+        '201':
+          description: Contract created.
+  /api/contracts/{contract_id}:
+    get:
+      summary: Get one owned contract
+      parameters:
+        - name: contract_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contract.
+    put:
+      summary: Update one owned contract
+      parameters:
+        - name: contract_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contract updated.
+    delete:
+      summary: Delete one owned contract
+      parameters:
+        - name: contract_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Contract deleted.
+  /api/contracts/dashboard:
+    get:
+      summary: Current user's dashboard metrics
+      responses:
+        '200':
+          description: Dashboard payload.
+  /api/notifications:
+    get:
+      summary: List current user's notification history
+      parameters:
+        - name: contract_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification list.
+    post:
+      summary: Create a notification record for an owned contract
+      responses:
+        '201':
+          description: Notification created.
