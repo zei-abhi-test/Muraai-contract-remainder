@@ -124,6 +124,28 @@ def run_reminders():
     results = notification_service.check_and_send_notifications()
     return results
 
+@app.route("/smtp-test")
+def smtp_test():
+    import smtplib
+    import os
+
+    try:
+        server = smtplib.SMTP(
+            os.getenv("SMTP_SERVER"),
+            int(os.getenv("SMTP_PORT"))
+        )
+        server.starttls()
+        server.login(
+            os.getenv("EMAIL_USER"),
+            os.getenv("EMAIL_PASSWORD")
+        )
+        server.quit()
+
+        return {"status": "SMTP OK"}
+
+    except Exception as e:
+        return {"error": str(e)}
+
 # Health check endpoint
 @app.route("/health", methods=["GET"])
 def health_check():
