@@ -1,0 +1,15 @@
+name: Daily Contract Reminders
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger reminders
+        run: |
+          curl -X POST https://muraai-contract-remainder.onrender.com/run-reminders
