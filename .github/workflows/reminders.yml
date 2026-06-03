@@ -1,6 +1,7 @@
 name: Daily Contract Reminders
 
 on:
+  push:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
