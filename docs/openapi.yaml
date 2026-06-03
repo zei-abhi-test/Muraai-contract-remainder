@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Muraai Contract Reminder API
   version: 1.0.0
-  description: API for managing contract renewals and notifications.
+  description: API for managing contract end-date reminders and notifications.
 servers:
   - url: http://localhost:5000
 security:
@@ -55,6 +55,7 @@ components:
         renewal_date:
           type: string
           format: date
+          description: Stored reference date. Reminder scheduling is based on end_date.
         notification_enabled:
           type: boolean
         notification_email:
@@ -141,6 +142,7 @@ paths:
       parameters:
         - name: upcoming_only
           in: query
+          description: When true, returns contracts with end_date in the next 30 days.
           schema:
             type: boolean
       responses:

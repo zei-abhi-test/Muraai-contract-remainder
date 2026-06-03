@@ -2,11 +2,15 @@ import requests
 import json
 import os
 from datetime import datetime, timedelta
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 from src.models.contract import Contract, Notification, db
 from src.services.logging_config import get_structured_logger
+
+
+REMINDER_WINDOW_DAYS = 30
+REMINDER_INTERVAL_DAYS = 2
+REMINDER_DEDUP_HOURS = 48
+END_DATE_REMINDER_PREFIX = "Contract end date reminder"
 
 
 class NotificationService:
@@ -25,7 +29,7 @@ class NotificationService:
         self.fcm_server_key = app.config.get("FCM_SERVER_KEY", "")
         self.fcm_url = "https://fcm.googleapis.com/fcm/send"
 
-    def send_email_notification(self, to_email, subject, body, contract_id=None):
+    def send_email_notification(self, to_email, subject, body, contract_id=None, log_message=None):
         """Send email notification using Resend API"""
         try:
             self.logger.info(
@@ -37,15 +41,15 @@ class NotificationService:
                 "https://api.resend.com/emails",
                 headers={
                     "Authorization": f"Bearer {self.resend_api_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 json={
                     "from": "Muraai <onboarding@resend.dev>",  # Update as needed
                     "to": [to_email],
                     "subject": subject,
-                    "html": body
+                    "html": body,
                 },
-                timeout=30
+                timeout=30,
             )
 
             if response.status_code in (200, 201):
@@ -55,7 +59,7 @@ class NotificationService:
                         contract_id=contract_id,
                         notification_type="email",
                         status="sent",
-                        message=f"Email sent to {to_email}",
+                        message=log_message or f"Email sent to {to_email}",
                     )
                     db.session.add(notification)
                     db.session.commit()
@@ -66,7 +70,9 @@ class NotificationService:
                 )
                 return True, "Email sent successfully"
             else:
-                raise Exception(f"Resend API failed with status {response.status_code}: {response.text}")
+                raise Exception(
+                    f"Resend API failed with status {response.status_code}: {response.text}"
+                )
 
         except Exception as e:
             self.logger.error(
@@ -92,12 +98,11 @@ class NotificationService:
 
             return False, str(e)
 
-    def send_push_notification(self, device_token, title, body, contract_id=None):
+    def send_push_notification(self, device_token, title, body, contract_id=None, log_message=None):
         """Send mobile push notification via Firebase Cloud Messaging"""
         try:
             self.logger.info(
-                "Sending push notification",
-                context={"contract_id": contract_id, "title": title}
+                "Sending push notification", context={"contract_id": contract_id, "title": title}
             )
 
             headers = {
@@ -115,7 +120,7 @@ class NotificationService:
                 },
                 "data": {
                     "contract_id": str(contract_id) if contract_id else "",
-                    "type": "contract_renewal",
+                    "type": "contract_end_date",
                 },
             }
 
@@ -127,18 +132,19 @@ class NotificationService:
                         contract_id=contract_id,
                         notification_type="mobile",
                         status="sent",
-                        message="Push notification sent to device",
+                        message=log_message or "Push notification sent to device",
                     )
                     db.session.add(notification)
                     db.session.commit()
 
                 self.logger.info(
-                    "Push notification sent successfully",
-                    context={"contract_id": contract_id}
+                    "Push notification sent successfully", context={"contract_id": contract_id}
                 )
                 return True, "Push notification sent successfully"
             else:
-                raise Exception(f"FCM request failed with status {response.status_code}: {response.text}")
+                raise Exception(
+                    f"FCM request failed with status {response.status_code}: {response.text}"
+                )
 
         except Exception as e:
             self.logger.error(
@@ -162,24 +168,47 @@ class NotificationService:
 
             return False, str(e)
 
-    def create_email_template(self, contract, days_until_renewal):
-        """Create HTML email template for contract renewal reminder"""
-        if days_until_renewal < 0:
-            urgency = "OVERDUE"
+    def should_send_end_date_reminder(self, contract, today=None):
+        """Return whether a contract is on an end-date reminder day."""
+        today = today or datetime.now().date()
+        days_until_end = (contract.end_date - today).days
+        return (
+            0 <= days_until_end <= REMINDER_WINDOW_DAYS
+            and days_until_end % REMINDER_INTERVAL_DAYS == 0
+        )
+
+    def has_recent_end_date_reminder(self, contract_id, notification_type):
+        """Avoid duplicate scheduler sends within the same 48-hour reminder window."""
+        threshold = datetime.utcnow() - timedelta(hours=REMINDER_DEDUP_HOURS)
+        return (
+            Notification.query.filter(
+                Notification.contract_id == contract_id,
+                Notification.notification_type == notification_type,
+                Notification.status == "sent",
+                Notification.send_date >= threshold,
+                Notification.message.like(f"{END_DATE_REMINDER_PREFIX}:%"),
+            ).first()
+            is not None
+        )
+
+    def create_email_template(self, contract, days_until_end):
+        """Create HTML email template for contract end-date reminder."""
+        if days_until_end == 0:
+            urgency = "ENDS TODAY"
             urgency_color = "#dc2626"
-            message = f"Your contract with {contract.company_name} was due for renewal {abs(days_until_renewal)} days ago."
-        elif days_until_renewal <= 7:
+            message = f"Your contract with {contract.company_name} ends today."
+        elif days_until_end <= 7:
             urgency = "URGENT"
             urgency_color = "#dc2626"
-            message = f"Your contract with {contract.company_name} is due for renewal in {days_until_renewal} days."
-        elif days_until_renewal <= 30:
+            message = f"Your contract with {contract.company_name} ends in {days_until_end} days."
+        elif days_until_end <= REMINDER_WINDOW_DAYS:
             urgency = "UPCOMING"
             urgency_color = "#f59e0b"
-            message = f"Your contract with {contract.company_name} is due for renewal in {days_until_renewal} days."
+            message = f"Your contract with {contract.company_name} ends in {days_until_end} days."
         else:
             urgency = "REMINDER"
             urgency_color = "#3b82f6"
-            message = f"Your contract with {contract.company_name} is due for renewal in {days_until_renewal} days."
+            message = f"Your contract with {contract.company_name} ends in {days_until_end} days."
 
         html_template = f"""
         <!DOCTYPE html>
@@ -187,17 +216,17 @@ class NotificationService:
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Contract Renewal Reminder</title>
+            <title>Contract End Date Reminder</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
                 <h1 style="color: white; margin: 0; font-size: 28px;">Muraai Contract Manager</h1>
-                <p style="color: #e2e8f0; margin: 10px 0 0 0;">Contract Renewal Reminder</p>
+                <p style="color: #e2e8f0; margin: 10px 0 0 0;">Contract End Date Reminder</p>
             </div>
             
             <div style="background: white; padding: 30px; border: 1px solid #e2e8f0; border-top: none;">
                 <div style="background: {urgency_color}; color: white; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 25px;">
-                    <h2 style="margin: 0; font-size: 20px;">{urgency} RENEWAL NOTICE</h2>
+                    <h2 style="margin: 0; font-size: 20px;">{urgency} EXPIRY NOTICE</h2>
                 </div>
                 
                 <p style="font-size: 16px; margin-bottom: 20px;">{message}</p>
@@ -214,7 +243,11 @@ class NotificationService:
                             <td style="padding: 8px 0;">{contract.company_name}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; font-weight: bold;">Renewal Date:</td>
+                            <td style="padding: 8px 0; font-weight: bold;">End Date:</td>
+                            <td style="padding: 8px 0;">{contract.end_date.strftime('%B %d, %Y')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Renewal Date Reference:</td>
                             <td style="padding: 8px 0;">{contract.renewal_date.strftime('%B %d, %Y')}</td>
                         </tr>
                         <tr>
@@ -245,74 +278,101 @@ class NotificationService:
         return html_template
 
     def check_and_send_notifications(self, user_id=None):
-        """Check for contracts due for renewal and send notifications"""
+        """Check for contracts nearing end_date and send reminder notifications."""
         today = datetime.now().date()
-        notification_days = [30, 14, 7, 3, 1, 0]
+        window_end = today + timedelta(days=REMINDER_WINDOW_DAYS)
 
         results = {"emails_sent": 0, "push_notifications_sent": 0, "errors": []}
 
         self.logger.info(
             "Starting notification check",
-            context={"notification_days": notification_days, "user_id": user_id},
+            context={
+                "basis": "end_date",
+                "window_days": REMINDER_WINDOW_DAYS,
+                "interval_days": REMINDER_INTERVAL_DAYS,
+                "user_id": user_id,
+            },
         )
 
-        for days in notification_days:
-            target_date = today + timedelta(days=days)
+        contracts_query = Contract.query.filter(
+            Contract.end_date >= today,
+            Contract.end_date <= window_end,
+            Contract.notification_enabled.is_(True),
+        )
+        if user_id is not None:
+            contracts_query = contracts_query.filter(Contract.user_id == user_id)
 
-            contracts_query = Contract.query.filter(
-                Contract.renewal_date == target_date,
-                Contract.notification_enabled.is_(True),
-            )
-            if user_id is not None:
-                contracts_query = contracts_query.filter(Contract.user_id == user_id)
+        contracts = contracts_query.order_by(Contract.end_date.asc()).all()
 
-            contracts = contracts_query.all()
+        for contract in contracts:
+            days_until_end = (contract.end_date - today).days
+            if not self.should_send_end_date_reminder(contract, today):
+                continue
 
-            for contract in contracts:
-                try:
-                    # Send email notification
-                    if contract.notification_email:
-                        subject = f"Contract Renewal Reminder - {contract.contract_name}"
-                        body = self.create_email_template(contract, days)
+            log_message = f"{END_DATE_REMINDER_PREFIX}: {days_until_end} days until end date"
 
-                        success, message = self.send_email_notification(
-                            contract.notification_email, subject, body, contract.id
-                        )
+            try:
+                if contract.notification_email and not self.has_recent_end_date_reminder(
+                    contract.id, "email"
+                ):
+                    subject = f"Contract Expiry Reminder - {contract.contract_name}"
+                    body = self.create_email_template(contract, days_until_end)
 
-                        if success:
-                            results["emails_sent"] += 1
-                        else:
-                            results["errors"].append(f"Email failed for contract {contract.id}: {message}")
-
-                    # Send push notification
-                    if contract.notification_mobile and contract.device_token:  # Assuming you have device_token
-                        title = "Contract Renewal Reminder"
-                        body_text = (
-                            f"{contract.contract_name} renewal due in {days} days"
-                            if days > 0
-                            else f"{contract.contract_name} renewal is due today"
-                        )
-
-                        success, message = self.send_push_notification(
-                            contract.device_token, title, body_text, contract.id
-                        )
-
-                        if success:
-                            results["push_notifications_sent"] += 1
-                        else:
-                            results["errors"].append(f"Push failed for contract {contract.id}: {message}")
-
-                except Exception as e:
-                    error_msg = f"Error processing contract {contract.id}: {str(e)}"
-                    results["errors"].append(error_msg)
-                    self.logger.error(
-                        "Error processing contract for notification",
-                        context={
-                            "contract_id": contract.id,
-                            "error": str(e),
-                            "exception_type": type(e).__name__,
-                        },
+                    success, message = self.send_email_notification(
+                        contract.notification_email,
+                        subject,
+                        body,
+                        contract.id,
+                        log_message=log_message,
                     )
+
+                    if success:
+                        results["emails_sent"] += 1
+                    else:
+                        results["errors"].append(
+                            f"Email failed for contract {contract.id}: {message}"
+                        )
+
+                device_token = getattr(contract, "device_token", None)
+                if (
+                    contract.notification_mobile
+                    and device_token
+                    and not self.has_recent_end_date_reminder(contract.id, "mobile")
+                ):
+                    title = "Contract Expiry Reminder"
+                    body_text = (
+                        f"{contract.contract_name} ends in {days_until_end} days"
+                        if days_until_end > 0
+                        else f"{contract.contract_name} ends today"
+                    )
+
+                    success, message = self.send_push_notification(
+                        device_token,
+                        title,
+                        body_text,
+                        contract.id,
+                        log_message=log_message,
+                    )
+
+                    if success:
+                        results["push_notifications_sent"] += 1
+                    else:
+                        results["errors"].append(
+                            f"Push failed for contract {contract.id}: {message}"
+                        )
+
+            except Exception as e:
+                error_msg = f"Error processing contract {contract.id}: {str(e)}"
+                results["errors"].append(error_msg)
+                self.logger.error(
+                    "Error processing contract for notification",
+                    context={
+                        "contract_id": contract.id,
+                        "days_until_end": days_until_end,
+                        "error": str(e),
+                        "exception_type": type(e).__name__,
+                    },
+                )
 
         db.session.commit()
 

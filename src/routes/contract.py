@@ -42,13 +42,16 @@ def get_contracts(current_user):
         query = Contract.query.filter_by(user_id=current_user.id)
 
         if upcoming_only:
-            # Get contracts with renewal dates in the next 30 days
+            # Get contracts ending in the next 30 days.
             from datetime import timedelta
 
+            today = date.today()
             thirty_days_from_now = date.today() + timedelta(days=30)
-            query = query.filter(Contract.renewal_date <= thirty_days_from_now)
+            query = query.filter(
+                Contract.end_date >= today, Contract.end_date <= thirty_days_from_now
+            )
 
-        contracts = query.order_by(Contract.renewal_date.asc()).all()
+        contracts = query.order_by(Contract.end_date.asc()).all()
         logger.info(
             "Contracts retrieved",
             context={
@@ -100,6 +103,7 @@ def create_contract(current_user):
                 "contract_name": contract.contract_name,
                 "company_name": contract.company_name,
                 "user_id": contract.user_id,
+                "end_date": str(contract.end_date),
                 "renewal_date": str(contract.renewal_date),
             },
         )
@@ -150,6 +154,10 @@ def update_contract(current_user, contract_id):
 
         # Validate request data
         validated_data = ContractUpdate(**data)
+        candidate_start_date = validated_data.start_date or contract.start_date
+        candidate_end_date = validated_data.end_date or contract.end_date
+        if candidate_end_date <= candidate_start_date:
+            return jsonify({"error": "end_date must be after start_date"}), 400
 
         # Update fields if provided
         if validated_data.company_name is not None:
@@ -209,7 +217,7 @@ def delete_contract(current_user, contract_id):
 @contract_bp.route("/contracts/dashboard", methods=["GET"])
 @token_required
 def get_dashboard_data(current_user):
-    """Get dashboard data including upcoming renewals and statistics"""
+    """Get dashboard data including upcoming end dates and statistics."""
     try:
         user_id = request.args.get("user_id", type=int)
 
@@ -218,22 +226,20 @@ def get_dashboard_data(current_user):
 
         query = Contract.query.filter_by(user_id=current_user.id)
 
-        # Get upcoming renewals (next 30 days)
+        # Get upcoming contract end dates (next 30 days).
         from datetime import timedelta
 
         today = date.today()
         thirty_days_from_now = today + timedelta(days=30)
 
         upcoming_contracts = (
-            query.filter(
-                Contract.renewal_date >= today, Contract.renewal_date <= thirty_days_from_now
-            )
-            .order_by(Contract.renewal_date.asc())
+            query.filter(Contract.end_date >= today, Contract.end_date <= thirty_days_from_now)
+            .order_by(Contract.end_date.asc())
             .all()
         )
 
-        # Get overdue contracts
-        overdue_contracts = query.filter(Contract.renewal_date < today).all()
+        # Get expired contracts.
+        overdue_contracts = query.filter(Contract.end_date < today).all()
 
         # Get total contracts
         total_contracts = query.count()
@@ -242,7 +248,9 @@ def get_dashboard_data(current_user):
             jsonify(
                 {
                     "upcoming_renewals": [contract.to_dict() for contract in upcoming_contracts],
+                    "upcoming_expiries": [contract.to_dict() for contract in upcoming_contracts],
                     "overdue_contracts": [contract.to_dict() for contract in overdue_contracts],
+                    "expired_contracts": [contract.to_dict() for contract in overdue_contracts],
                     "total_contracts": total_contracts,
                     "upcoming_count": len(upcoming_contracts),
                     "overdue_count": len(overdue_contracts),

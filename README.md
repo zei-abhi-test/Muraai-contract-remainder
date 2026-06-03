@@ -1,6 +1,6 @@
 # Muraai Contract Reminder
 
-A Flask-based contract renewal reminder system that automatically sends email and push notifications for upcoming contract renewals. Built for production deployment with security, reliability, and scalability in mind.
+A Flask-based contract reminder system that automatically sends email and push notifications for upcoming contract end dates. Built for production deployment with security, reliability, and scalability in mind.
 
 ## Features
 
@@ -200,16 +200,18 @@ curl http://localhost:5000/api/contracts/dashboard?user_id=1
 The application automatically runs these scheduled tasks:
 
 ### Daily Notification Check (9:00 AM)
-Scans all contracts and sends notifications for renewals due on specific days:
-- 30 days before renewal
-- 14 days before renewal
-- 7 days before renewal
-- 3 days before renewal
-- 1 day before renewal
-- On renewal date
+Scans all contracts and sends notifications based on `end_date`.
+
+Reminder eligibility is dynamic:
+- Calculate `days_until_end = (end_date - today).days`
+- Send when `0 <= days_until_end <= 30`
+- Send only on even values of `days_until_end`
+- Example reminder days: 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0
+
+The `renewal_date` field is still stored for reference and backward compatibility, but it is not used for reminder scheduling.
 
 ### Weekly Summary (Monday 8:00 AM)
-Sends a summary email of all contracts due in the next 7 days.
+Sends a summary email of all contracts ending in the next 7 days.
 
 ## Database Setup
 

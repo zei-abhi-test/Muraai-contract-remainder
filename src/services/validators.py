@@ -69,8 +69,6 @@ class ContractCreate(BaseModel):
     def validate_dates_and_notifications(self):
         if self.end_date <= self.start_date:
             raise ValueError("end_date must be after start_date")
-        if self.renewal_date < self.end_date:
-            raise ValueError("renewal_date must be on or after end_date")
         if self.notification_enabled and not self.notification_email:
             raise ValueError("notification_email is required when notifications are enabled")
         return self
@@ -105,8 +103,6 @@ class ContractUpdate(BaseModel):
     def validate_partial_dates(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
             raise ValueError("end_date must be after start_date")
-        if self.end_date and self.renewal_date and self.renewal_date < self.end_date:
-            raise ValueError("renewal_date must be on or after end_date")
         return self
 
     class Config:

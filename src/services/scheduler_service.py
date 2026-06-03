@@ -24,7 +24,7 @@ class SchedulerService:
             func=self.check_and_send_notifications,
             trigger=CronTrigger(hour=9, minute=0),  # Daily at 9:00 AM
             id="daily_notification_check",
-            name="Daily Contract Renewal Notification Check",
+            name="Daily Contract End Date Notification Check",
             replace_existing=True,
         )
 
@@ -49,7 +49,7 @@ class SchedulerService:
         atexit.register(lambda: self.scheduler.shutdown())
 
     def check_and_send_notifications(self):
-        """Job function to check for contract renewals and send notifications"""
+        """Job function to check contract end-date reminders and send notifications."""
         try:
             with self.app.app_context():
                 self.logger.info("Starting daily notification check")
@@ -82,20 +82,20 @@ class SchedulerService:
             return {"error": str(e)}
 
     def send_weekly_summary(self):
-        """Job function to send weekly summary of upcoming renewals"""
+        """Job function to send weekly summary of upcoming contract end dates."""
         try:
             with self.app.app_context():
                 from src.models.contract import Contract
 
                 self.logger.info("Starting weekly summary")
 
-                # Get contracts due in the next 7 days
+                # Get contracts ending in the next 7 days.
                 today = datetime.now().date()
                 next_week = today + timedelta(days=7)
 
                 upcoming_contracts = Contract.query.filter(
-                    Contract.renewal_date >= today,
-                    Contract.renewal_date <= next_week,
+                    Contract.end_date >= today,
+                    Contract.end_date <= next_week,
                     Contract.notification_enabled.is_(True),
                 ).all()
 
@@ -113,7 +113,7 @@ class SchedulerService:
                     failed_count = 0
                     for email, contracts in user_contracts.items():
                         subject = (
-                            f"Weekly Contract Renewal Summary - {len(contracts)} contracts due"
+                            f"Weekly Contract Expiry Summary - {len(contracts)} contracts ending"
                         )
                         body = self.create_weekly_summary_template(contracts)
 
@@ -146,7 +146,7 @@ class SchedulerService:
                         },
                     )
                 else:
-                    self.logger.info("No contracts due this week")
+                    self.logger.info("No contracts ending this week")
 
         except Exception as e:
             self.logger.error(
@@ -158,7 +158,7 @@ class SchedulerService:
         """Create HTML template for weekly summary email"""
         contract_rows = ""
         for contract in contracts:
-            days_until = (contract.renewal_date - datetime.now().date()).days
+            days_until = (contract.end_date - datetime.now().date()).days
             urgency_color = (
                 "#dc2626" if days_until <= 3 else "#f59e0b" if days_until <= 7 else "#3b82f6"
             )
@@ -167,7 +167,7 @@ class SchedulerService:
             <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 12px; font-weight: bold;">{contract.contract_name}</td>
                 <td style="padding: 12px;">{contract.company_name}</td>
-                <td style="padding: 12px;">{contract.renewal_date.strftime('%B %d, %Y')}</td>
+                <td style="padding: 12px;">{contract.end_date.strftime('%B %d, %Y')}</td>
                 <td style="padding: 12px; color: {urgency_color}; font-weight: bold;">{days_until} days</td>
             </tr>
             """
@@ -187,15 +187,15 @@ class SchedulerService:
             </div>
             
             <div style="background: white; padding: 30px; border: 1px solid #e2e8f0; border-top: none;">
-                <h2 style="color: #1f2937; margin: 0 0 20px 0;">Contracts Due This Week</h2>
-                <p style="margin-bottom: 25px;">You have {len(contracts)} contracts due for renewal in the next 7 days:</p>
+                <h2 style="color: #1f2937; margin: 0 0 20px 0;">Contracts Ending This Week</h2>
+                <p style="margin-bottom: 25px;">You have {len(contracts)} contracts ending in the next 7 days:</p>
                 
                 <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                     <thead>
                         <tr style="background: #f8fafc;">
                             <th style="padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0;">Contract</th>
                             <th style="padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0;">Company</th>
-                            <th style="padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0;">Renewal Date</th>
+                            <th style="padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0;">End Date</th>
                             <th style="padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #e2e8f0;">Days Left</th>
                         </tr>
                     </thead>

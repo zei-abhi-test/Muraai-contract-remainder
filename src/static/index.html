@@ -7,14 +7,18 @@
     <style>
       :root {
         color-scheme: light;
-        --bg: #f6f8fb;
+        --bg: #f7f7f4;
         --panel: #ffffff;
-        --line: #d9e1ec;
-        --text: #172033;
-        --muted: #607089;
-        --accent: #0f766e;
-        --danger: #b42318;
-        --warn: #b54708;
+        --panel-soft: #fdfdfb;
+        --line: #deded8;
+        --line-strong: #111111;
+        --text: #111111;
+        --muted: #77776f;
+        --accent: #d71920;
+        --accent-dark: #a80f15;
+        --danger: #d71920;
+        --warn: #7b5b00;
+        --shadow: 0 18px 45px rgba(17, 17, 17, 0.06);
       }
 
       * {
@@ -24,9 +28,14 @@
       body {
         margin: 0;
         min-height: 100vh;
-        background: var(--bg);
+        background:
+          radial-gradient(circle at 1px 1px, rgba(17, 17, 17, 0.06) 1px, transparent 0),
+          var(--bg);
+        background-size: 18px 18px;
         color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Arial, Helvetica, sans-serif;
       }
 
       header {
@@ -34,9 +43,13 @@
         align-items: center;
         justify-content: space-between;
         gap: 16px;
-        padding: 18px 28px;
-        border-bottom: 1px solid var(--line);
-        background: var(--panel);
+        padding: 20px clamp(18px, 4vw, 44px);
+        border-bottom: 1px solid var(--line-strong);
+        background: rgba(247, 247, 244, 0.92);
+        backdrop-filter: blur(16px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
       }
 
       h1,
@@ -47,11 +60,14 @@
       }
 
       h1 {
-        font-size: 22px;
+        font-size: 21px;
+        line-height: 1;
+        letter-spacing: 0;
       }
 
       h2 {
-        font-size: 18px;
+        font-size: 16px;
+        letter-spacing: 0;
       }
 
       h3 {
@@ -60,20 +76,26 @@
 
       main {
         display: grid;
-        grid-template-columns: 340px 1fr;
-        gap: 18px;
-        padding: 18px;
+        grid-template-columns: minmax(280px, 340px) 1fr;
+        gap: 20px;
+        padding: clamp(16px, 4vw, 44px);
+        max-width: 1280px;
+        margin: 0 auto;
       }
 
       section,
       aside {
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
       }
 
       aside {
-        padding: 16px;
+        padding: 18px;
+        align-self: start;
+        position: sticky;
+        top: 96px;
       }
 
       .content {
@@ -86,8 +108,10 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 14px 16px;
+        padding: 16px 18px;
         border-bottom: 1px solid var(--line);
+        background: var(--panel-soft);
+        border-radius: 8px 8px 0 0;
       }
 
       .metrics {
@@ -96,8 +120,11 @@
       }
 
       .metric {
-        padding: 16px;
+        padding: 20px 18px;
         border-right: 1px solid var(--line);
+        min-height: 106px;
+        display: grid;
+        align-content: center;
       }
 
       .metric:last-child {
@@ -106,20 +133,22 @@
 
       .metric strong {
         display: block;
-        font-size: 28px;
+        font-size: 40px;
         line-height: 1.1;
+        font-weight: 800;
+        letter-spacing: 0;
       }
 
       .metric span,
       label,
       .muted {
         color: var(--muted);
-        font-size: 13px;
+        font-size: 12px;
       }
 
       form {
         display: grid;
-        gap: 12px;
+        gap: 14px;
       }
 
       .grid {
@@ -130,27 +159,42 @@
 
       label {
         display: grid;
-        gap: 6px;
+        gap: 7px;
+        font-weight: 650;
+        letter-spacing: 0;
       }
 
       input,
       textarea,
       button {
         width: 100%;
-        min-height: 38px;
-        border-radius: 6px;
+        min-height: 42px;
+        border-radius: 8px;
         font: inherit;
       }
 
       input,
       textarea {
         border: 1px solid var(--line);
-        padding: 8px 10px;
+        padding: 9px 11px;
+        background: #fbfbf8;
+        color: var(--text);
+        outline: none;
+        transition:
+          border-color 140ms ease,
+          box-shadow 140ms ease,
+          background 140ms ease;
+      }
+
+      input:focus,
+      textarea:focus {
+        border-color: var(--line-strong);
         background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08);
       }
 
       textarea {
-        min-height: 74px;
+        min-height: 82px;
         resize: vertical;
       }
 
@@ -159,23 +203,45 @@
         border: 1px solid var(--accent);
         background: var(--accent);
         color: #ffffff;
-        padding: 8px 12px;
-        font-weight: 700;
+        padding: 9px 14px;
+        font-weight: 800;
+        letter-spacing: 0;
+        transition:
+          background 140ms ease,
+          border-color 140ms ease,
+          transform 140ms ease;
+      }
+
+      button:hover {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+      }
+
+      button:active {
+        transform: translateY(1px);
       }
 
       button.secondary {
         background: #ffffff;
-        color: var(--accent);
+        color: var(--text);
+        border-color: var(--line-strong);
+      }
+
+      button.secondary:hover {
+        background: #111111;
+        border-color: #111111;
+        color: #ffffff;
       }
 
       table {
         width: 100%;
         border-collapse: collapse;
+        background: #ffffff;
       }
 
       th,
       td {
-        padding: 12px 14px;
+        padding: 14px 18px;
         text-align: left;
         border-bottom: 1px solid var(--line);
         vertical-align: top;
@@ -185,28 +251,33 @@
         color: var(--muted);
         font-size: 12px;
         text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: var(--panel-soft);
       }
 
       .status {
         display: inline-block;
-        min-width: 76px;
+        min-width: 88px;
         border-radius: 999px;
-        padding: 4px 8px;
+        padding: 5px 9px;
         text-align: center;
         font-size: 12px;
         font-weight: 700;
-        background: #e7f5f2;
-        color: var(--accent);
+        background: #eeeeea;
+        color: #111111;
+        border: 1px solid #d8d8d2;
       }
 
       .status.overdue {
-        background: #fee4e2;
+        background: #fff1f1;
         color: var(--danger);
+        border-color: #f3b8b8;
       }
 
       .status.upcoming {
-        background: #fef0c7;
+        background: #fff7d6;
         color: var(--warn);
+        border-color: #ecd98b;
       }
 
       .hidden {
@@ -214,9 +285,40 @@
       }
 
       .notice {
-        min-height: 20px;
+        min-height: 21px;
         color: var(--muted);
         font-size: 13px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle, #111111 1.5px, transparent 2px),
+          #ffffff;
+        background-size: 7px 7px;
+      }
+
+      .brand-mark span {
+        color: var(--accent);
+        font-weight: 900;
+        font-size: 16px;
+        line-height: 1;
+        text-shadow: 0 0 0 #ffffff;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
       }
 
       @media (max-width: 860px) {
@@ -233,14 +335,61 @@
           border-right: 0;
           border-bottom: 1px solid var(--line);
         }
+
+        aside {
+          position: static;
+        }
+
+        header {
+          align-items: flex-start;
+        }
+      }
+
+      @media (max-width: 640px) {
+        table,
+        thead,
+        tbody,
+        tr,
+        th,
+        td {
+          display: block;
+        }
+
+        thead {
+          display: none;
+        }
+
+        tr {
+          padding: 12px 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        td {
+          border-bottom: 0;
+          padding: 7px 18px;
+        }
+
+        td::before {
+          content: attr(data-label);
+          display: block;
+          color: var(--muted);
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
       }
     </style>
   </head>
   <body>
     <header>
-      <div>
-        <h1>Muraai Contract Reminder</h1>
-        <p class="muted" id="sessionLabel">Not signed in</p>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span>M</span></div>
+        <div>
+          <h1>Muraai Contract Reminder</h1>
+          <p class="muted" id="sessionLabel">Not signed in</p>
+        </div>
       </div>
       <button class="secondary hidden" id="logoutButton" type="button">Sign out</button>
     </header>
@@ -282,11 +431,11 @@
             </div>
             <div class="metric">
               <strong id="upcomingContracts">0</strong>
-              <span>Upcoming renewals</span>
+              <span>Upcoming expiries</span>
             </div>
             <div class="metric">
               <strong id="overdueContracts">0</strong>
-              <span>Overdue renewals</span>
+              <span>Expired contracts</span>
             </div>
           </div>
         </section>
@@ -315,7 +464,7 @@
                 <input id="endDate" type="date" required />
               </label>
               <label>
-                Renewal date
+                Renewal date (reference)
                 <input id="renewalDate" type="date" required />
               </label>
               <label>
@@ -335,17 +484,19 @@
           <div class="section-header">
             <h2>Contracts</h2>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Contract</th>
-                <th>Company</th>
-                <th>Renewal</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="contractsTable"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Contract</th>
+                  <th>Company</th>
+                  <th>End date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="contractsTable"></tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>
@@ -407,15 +558,15 @@
         const today = new Date().toISOString().slice(0, 10);
         byId("contractsTable").innerHTML = contracts
           .map((contract) => {
-            const days = Math.ceil((new Date(contract.renewal_date) - new Date(today)) / 86400000);
+            const days = Math.ceil((new Date(contract.end_date) - new Date(today)) / 86400000);
             const statusClass = days < 0 ? "overdue" : days <= 30 ? "upcoming" : "";
-            const status = days < 0 ? "Overdue" : days <= 30 ? "Upcoming" : "Tracked";
+            const status = days < 0 ? "Expired" : days <= 30 ? "Ending soon" : "Tracked";
             return `
               <tr>
-                <td><strong>${contract.contract_name}</strong><br /><span class="muted">${contract.notes || ""}</span></td>
-                <td>${contract.company_name}</td>
-                <td>${contract.renewal_date}</td>
-                <td><span class="status ${statusClass}">${status}</span></td>
+                <td data-label="Contract"><strong>${contract.contract_name}</strong><br /><span class="muted">${contract.notes || ""}</span></td>
+                <td data-label="Company">${contract.company_name}</td>
+                <td data-label="End date">${contract.end_date}</td>
+                <td data-label="Status"><span class="status ${statusClass}">${status}</span></td>
               </tr>
             `;
           })

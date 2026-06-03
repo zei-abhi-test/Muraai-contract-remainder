@@ -106,18 +106,20 @@ app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(contract_bp, url_prefix="/api")
 app.register_blueprint(notification_bp, url_prefix="/api")
 
-# @app.route("/test-email")
-# def test_email():
-#     success, message = notification_service.send_email_notification(
-#         to_email="usethinkpad27@gmail.com",
-#         subject="Muraai Test Email",
-#         body="<h1>Email system working!</h1>"
-#     )
 
-#     return {
-#         "success": success,
-#         "message": message
-#     }
+@app.route("/test-email")
+def test_email():
+    success, message = notification_service.send_email_notification(
+        to_email="rekha.mh@muraai.com",
+        subject="Muraai Test Email",
+        body="<h1>Email system working!</h1>"
+    )
+
+    return {
+        "success": success,
+        "message": message
+    }
+
 
 @app.route("/debug-resend")
 def debug_resend():
@@ -130,6 +132,7 @@ def debug_resend():
         "prefix": key[:8] if key else None,
         "length": len(key) if key else 0
     }
+
 
 @app.route("/run-reminders", methods=["GET", "POST"])
 def run_reminders():
@@ -160,6 +163,8 @@ def test_resend():
         "status": response.status_code,
         "response": response.text
     }
+
+
 # Health check endpoint
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -199,5 +204,4 @@ def serve(path):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
     debug = os.getenv("FLASK_ENV") == "development"
-    app.run(host="0.0.0.0", port=port, debug=debug)
-
+    app.run(host="127.0.0.1", port=8000, debug=debug)

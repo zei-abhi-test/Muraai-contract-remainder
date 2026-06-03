@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from conftest import register_user
 
 
@@ -85,6 +87,41 @@ def test_dashboard_is_scoped_to_authenticated_user(client):
     assert response.get_json()["total_contracts"] == 1
 
 
+def test_dashboard_metrics_use_end_date_not_renewal_date(client):
+    _, token = register_user(client, username="metrics", email="metrics@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    today = date.today()
+
+    client.post(
+        "/api/contracts",
+        json=contract_payload(
+            contract_name="Ending Soon",
+            start_date=(today - timedelta(days=30)).isoformat(),
+            end_date=(today + timedelta(days=28)).isoformat(),
+            renewal_date=(today + timedelta(days=120)).isoformat(),
+        ),
+        headers=headers,
+    )
+    client.post(
+        "/api/contracts",
+        json=contract_payload(
+            contract_name="Already Ended",
+            start_date=(today - timedelta(days=60)).isoformat(),
+            end_date=(today - timedelta(days=1)).isoformat(),
+            renewal_date=(today + timedelta(days=120)).isoformat(),
+        ),
+        headers=headers,
+    )
+
+    response = client.get("/api/contracts/dashboard", headers=headers)
+    payload = response.get_json()
+
+    assert payload["upcoming_count"] == 1
+    assert payload["overdue_count"] == 1
+    assert payload["upcoming_expiries"][0]["contract_name"] == "Ending Soon"
+    assert payload["expired_contracts"][0]["contract_name"] == "Already Ended"
+
+
 def test_notification_history_is_scoped_to_contract_owner(client):
     _, owner_token = register_user(client, username="owner", email="owner@example.com")
     create_response = client.post(
@@ -116,13 +153,14 @@ def test_notification_history_is_scoped_to_contract_owner(client):
 
 
 def test_update_delete_and_upcoming_contract_filter(client, auth_headers):
+    today = date.today()
     create_response = client.post(
         "/api/contracts",
         json=contract_payload(
             contract_name="Original",
-            start_date="2026-01-01",
-            end_date="2026-05-28",
-            renewal_date="2026-05-28",
+            start_date=(today - timedelta(days=30)).isoformat(),
+            end_date=(today + timedelta(days=28)).isoformat(),
+            renewal_date=(today + timedelta(days=120)).isoformat(),
         ),
         headers=auth_headers,
     )
@@ -143,6 +181,20 @@ def test_update_delete_and_upcoming_contract_filter(client, auth_headers):
     assert len(upcoming_response.get_json()) == 1
     assert delete_response.status_code == 204
     assert missing_response.status_code == 404
+
+
+def test_update_allows_renewal_date_before_end_date(client, auth_headers):
+    create_response = client.post("/api/contracts", json=contract_payload(), headers=auth_headers)
+    contract_id = create_response.get_json()["id"]
+
+    update_response = client.put(
+        f"/api/contracts/{contract_id}",
+        json={"renewal_date": "2026-06-30"},
+        headers=auth_headers,
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.get_json()["renewal_date"] == "2026-06-30"
 
 
 def test_contract_validation_and_forbidden_filters(client, auth_headers):

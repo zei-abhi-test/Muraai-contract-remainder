@@ -49,7 +49,7 @@ def send_test_notification(current_user):
 
         elif notification_type == "mobile":
             # For demo purposes, we'll simulate a push notification
-            title = "Test Contract Renewal Reminder"
+            title = "Test Contract Expiry Reminder"
             body_text = f"This is a test notification for {contract.contract_name}"
 
             # In a real implementation, you would use actual device tokens
@@ -105,13 +105,15 @@ def send_test_notification(current_user):
 @notification_bp.route("/notifications/check-renewals", methods=["POST"])
 @token_required
 def check_renewals(current_user):
-    """Manually trigger the renewal check and notification process"""
+    """Manually trigger the contract end-date reminder process."""
     try:
-        logger.info("Manual renewal check initiated", context={"user_id": current_user.id})
+        logger.info(
+            "Manual end-date reminder check initiated", context={"user_id": current_user.id}
+        )
         results = notification_service.check_and_send_notifications(user_id=current_user.id)
 
         logger.info(
-            "Manual renewal check completed",
+            "Manual end-date reminder check completed",
             context={
                 "emails_sent": results["emails_sent"],
                 "push_notifications_sent": results["push_notifications_sent"],
@@ -123,7 +125,7 @@ def check_renewals(current_user):
 
     except Exception as e:
         logger.error(
-            "Failed to check renewals",
+            "Failed to check end-date reminders",
             context={"error": str(e), "exception_type": type(e).__name__},
         )
         return jsonify({"success": False, "message": str(e)}), 500
