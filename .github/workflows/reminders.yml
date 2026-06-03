@@ -2,7 +2,7 @@ name: Daily Contract Reminders
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Trigger reminders
         run: |
-          curl -X POST https://muraai-contract-remainder.onrender.com/run-reminders
+          curl -X GET https://muraai-contract-remainder.onrender.com/run-reminders
