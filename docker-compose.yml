@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
 
   muraai-app:
-    build: .
+    build: ./MURAAI/backend
     ports:
       - "5000:5000"
     environment:

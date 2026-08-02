@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Muraai Contract Reminder</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f7f5;
+        --panel: #ffffff;
+        --panel-soft: #f3f3f1;
+        --line: #deded8;
+        --line-strong: #b9b9b2;
+        --text: #111111;
+        --muted: #6e6e67;
+        --danger: #ff3b30;
+        --warn: #b86400;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px clamp(18px, 4vw, 44px); border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(18px); }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 21px; line-height: 1; }
+      h2 { font-size: 15px; }
+      h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+      main { max-width: 1280px; margin: 0 auto; padding: clamp(16px, 3vw, 32px); }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-mark { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); background: #fff; }
+      .muted, label { color: var(--muted); font-size: 13px; }
+      .hidden { display: none !important; }
+      .shell { display: grid; gap: 16px; }
+      .app-shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+      .workspace { min-width: 0; }
+      .sidebar { position: sticky; top: 96px; display: grid; gap: 8px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+      .nav-item { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 8px 10px; border-radius: 10px; color: var(--text); text-decoration: none; font-size: 13px; font-weight: 750; }
+      .nav-item:hover { background: var(--panel-soft); }
+      .nav-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text); }
+      .top-search { flex: 1; max-width: 520px; display: flex; align-items: center; gap: 8px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+      .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .panel, aside { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+      .panel-pad { padding: 18px; }
+      .section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px; border-bottom: 1px solid var(--line); }
+      button, input, select, textarea { min-height: 40px; border-radius: 10px; font: inherit; }
+      input, select, textarea { width: 100%; border: 1px solid var(--line); background: #fbfbfa; color: var(--text); padding: 9px 11px; outline: none; }
+      textarea { min-height: 76px; resize: vertical; }
+      input:focus, select:focus, textarea:focus { border-color: var(--line-strong); box-shadow: 0 0 0 3px rgba(17,17,17,0.06); }
+      button { border: 1px solid var(--text); background: var(--text); color: #fff; padding: 8px 13px; font-weight: 800; cursor: pointer; }
+      button.secondary { background: var(--panel); color: var(--text); border-color: var(--line-strong); }
+      button.subtle { background: var(--panel-soft); color: var(--text); border-color: var(--line); }
+      form { display: grid; gap: 12px; }
+      label { display: grid; gap: 6px; font-weight: 650; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+      .metric { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 18px; }
+      .metric strong { display: block; font-size: 38px; line-height: 1; }
+      .metric span { color: var(--muted); font-size: 12px; }
+      .toolbar { display: grid; grid-template-columns: 1.4fr repeat(3, minmax(120px, 0.7fr)); gap: 10px; }
+      .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .chart-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: #fbfbfa; display: grid; gap: 10px; }
+      .bar-row { display: grid; grid-template-columns: 110px 1fr 54px; align-items: center; gap: 8px; font-size: 12px; }
+      .bar-track { height: 8px; border-radius: 999px; background: #eeeeea; overflow: hidden; }
+      .bar-fill { height: 100%; border-radius: inherit; background: var(--text); }
+      .calendar-grid, .kanban-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+      .calendar-card, .kanban-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fbfbfa; }
+      .saved-views { display: flex; gap: 8px; flex-wrap: wrap; }
+      .table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 13px 16px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+      th { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+      tr.clickable { cursor: pointer; }
+      tr.clickable:hover { background: #fbfbfa; }
+      .empty-row { color: var(--muted); padding: 18px; }
+      .status, .pill, .count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 76px; border-radius: 999px; padding: 5px 9px; border: 1px solid var(--line); background: var(--panel-soft); color: var(--muted); font-size: 12px; font-weight: 800; }
+      .active { color: #44443f; background: #f4f4f2; }
+      .upcoming { color: var(--warn); background: #fff7e8; border-color: #f0d7ad; }
+      .critical, .expired { color: var(--danger); background: #fff0ef; border-color: #ffc8c4; }
+      .drawer-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(17,17,17,0.24); display: grid; justify-items: end; }
+      .drawer { width: min(760px, 100%); height: 100%; background: var(--panel); border-left: 1px solid var(--line); overflow: auto; }
+      .drawer.small { width: min(560px, 100%); }
+      .drawer-body { display: grid; gap: 16px; padding: 18px; }
+      .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .detail-item, .list-item { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fbfbfa; }
+      .detail-item span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+      .list { display: grid; gap: 8px; }
+      .inline-total { display: grid; align-items: end; font-weight: 900; }
+      .notice { min-height: 18px; color: var(--muted); font-size: 13px; }
+      .file-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      body:not(.authenticated) .app-shell { display: none; }
+      body.authenticated .auth-shell { display: none; }
+      .auth-shell { max-width: 440px; margin: 42px auto; }
+      @media (max-width: 980px) { .app-shell { grid-template-columns: 1fr; } .sidebar { position: static; } }
+      @media (max-width: 820px) { .grid, .toolbar, .detail-grid, .chart-grid { grid-template-columns: 1fr; } header { align-items: flex-start; flex-wrap: wrap; } .top-search { order: 3; max-width: none; width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img class="brand-mark" src="/assets/mit-logo.png" alt="MIT logo" />
+        <div><h1>Muraai Contract Reminder</h1><p class="muted" id="sessionLabel">Not signed in</p></div>
+      </div>
+      <div class="top-search"><input id="globalSearch" placeholder="Global search: customer, contract, invoice, SKU" /><button class="secondary" id="commandButton" type="button">Ctrl+K</button></div>
+      <button class="secondary hidden" id="logoutButton" type="button">Sign out</button>
+    </header>
+
+    <main>
+      <aside class="auth-shell panel-pad panel">
+        <h2>Access</h2>
+        <p class="notice" id="authNotice"></p>
+        <form id="authForm">
+          <label>Username <input id="username" autocomplete="username" placeholder="john_doe" /></label>
+          <label>Email <input id="email" type="email" autocomplete="email" required placeholder="john@example.com" /></label>
+          <label>Password <input id="password" type="password" autocomplete="current-password" required /></label>
+          <div class="grid"><button type="submit" data-mode="login">Login</button><button class="secondary" type="submit" data-mode="register">Register</button></div>
+        </form>
+      </aside>
+
+      <div class="app-shell">
+        <nav class="sidebar" aria-label="Enterprise modules">
+          <a class="nav-item" href="#dashboard"><span class="nav-dot"></span>Dashboard</a>
+          <a class="nav-item" href="#contracts"><span class="nav-dot"></span>Contracts</a>
+          <a class="nav-item" href="#customers"><span class="nav-dot"></span>Customers</a>
+          <a class="nav-item" href="#documents"><span class="nav-dot"></span>Documents</a>
+          <a class="nav-item" href="#approvals"><span class="nav-dot"></span>Approvals</a>
+          <a class="nav-item" href="#reports"><span class="nav-dot"></span>Reports</a>
+        </nav>
+        <div class="workspace shell" id="dashboard">
+        <div class="topbar">
+          <div><h2>Contract Operations</h2><p class="muted">Minimal dashboard. Full context opens in the detail panel.</p></div>
+          <div class="actions">
+            <button class="secondary" id="importButton" type="button">Import CSV</button>
+            <button class="secondary" id="customerButton" type="button">Add Customer</button>
+            <button class="secondary" id="contactButton" type="button">Add Contact</button>
+            <button id="contractButton" type="button">Add Contract</button>
+            <button class="subtle" id="refreshButton" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <section class="metrics" aria-label="Enterprise KPI dashboard">
+          <div class="metric"><strong id="totalContracts">0</strong><span>Total contracts</span></div>
+          <div class="metric"><strong id="activeContracts">0</strong><span>Active</span></div>
+          <div class="metric"><strong id="endingSoonContracts">0</strong><span>Ending soon</span></div>
+          <div class="metric"><strong id="criticalContracts">0</strong><span>Critical</span></div>
+          <div class="metric"><strong id="expiredContracts">0</strong><span>Expired</span></div>
+          <div class="metric"><strong id="totalRemindersSent">0</strong><span>Reminders sent</span></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-header"><h2>Renewal Forecast</h2><span class="pill" id="forecastValue">INR 0.00</span></div>
+          <div class="metrics panel-pad">
+            <div class="metric"><strong id="endingThisMonth">0</strong><span>Ending this month</span></div>
+            <div class="metric"><strong id="endingNextMonth">0</strong><span>Ending next month</span></div>
+            <div class="metric"><strong id="valueThisMonth">0</strong><span>Value this month</span></div>
+            <div class="metric"><strong id="valueNextMonth">0</strong><span>Value next month</span></div>
+          </div>
+        </section>
+        <section class="panel" id="analytics">
+          <div class="section-header"><h2>Executive Analytics</h2><span class="pill">Live</span></div>
+          <div class="chart-grid panel-pad">
+            <div class="chart-card"><h3>Contract Status</h3><div id="statusChart"></div></div>
+            <div class="chart-card"><h3>Revenue Trend</h3><div id="revenueTrend"></div></div>
+            <div class="chart-card"><h3>Top Customers</h3><div id="topCustomers"></div></div>
+            <div class="chart-card"><h3>Product Distribution</h3><div id="productDistribution"></div></div>
+          </div>
+        </section>
+
+        <section class="panel" id="calendar">
+          <div class="section-header"><h2>Renewal Calendar</h2><span class="muted">Next 6 renewals</span></div>
+          <div class="calendar-grid panel-pad" id="renewalCalendar"></div>
+        </section>
+
+        <section class="panel" id="approvals">
+          <div class="section-header"><h2>Approval Workflow</h2><span class="pill" id="approvalCount">0 pending</span></div>
+          <div class="kanban-grid panel-pad" id="approvalBoard"></div>
+        </section>
+
+        <section class="panel" id="reports">
+          <div class="section-header"><h2>Reports & Exports</h2><div class="actions"><button class="secondary" id="exportCsvButton" type="button">Export CSV</button><button class="secondary" id="printReportButton" type="button">Print Report</button></div></div>
+          <div class="panel-pad saved-views"><span class="pill">Customer Report</span><span class="pill">Renewal Report</span><span class="pill">Expired Report</span><span class="pill">Product Report</span><span class="pill">PO Report</span><span class="pill">Invoice Report</span></div>
+        </section>
+        <section class="panel" id="contracts">
+          <div class="section-header"><h2>Find Contracts</h2><span class="muted" id="visibleCount">0 visible</span></div>
+          <div class="panel-pad toolbar">
+            <input id="searchInput" placeholder="Search company, contract, number, customer" />
+            <select id="healthFilter"><option value="">All health</option><option>Healthy</option><option>Warning</option><option>Critical</option><option>Expired</option></select>
+            <select id="statusFilter"><option value="">All sections</option><option value="critical">Critical</option><option value="endingSoon">Ending Soon</option><option value="active">Active</option><option value="expired">Expired</option></select>
+            <select id="setupFilter"><option value="">All setup</option><option value="missing-email">Missing email</option><option value="missing-document">Missing document</option></select>
+          </div>
+        </section>
+
+        <section class="panel"><div class="section-header"><h2>Critical Contracts</h2><span class="count-badge" id="criticalCountBadge">0</span></div><div class="table-wrap"><table><thead><tr><th>Contract</th><th>Customer</th><th>End date</th><th>Health</th><th>Action</th></tr></thead><tbody id="criticalContractsTable"></tbody></table></div></section>
+        <section class="panel"><div class="section-header"><h2>Ending Soon</h2><span class="count-badge" id="endingSoonCountBadge">0</span></div><div class="table-wrap"><table><thead><tr><th>Contract</th><th>Customer</th><th>End date</th><th>Health</th><th>Action</th></tr></thead><tbody id="endingSoonContractsTable"></tbody></table></div></section>
+        <section class="panel"><div class="section-header"><h2>Active Contracts</h2><span class="count-badge" id="activeCountBadge">0</span></div><div class="table-wrap"><table><thead><tr><th>Contract</th><th>Customer</th><th>End date</th><th>Health</th><th>Action</th></tr></thead><tbody id="activeContractsTable"></tbody></table></div></section>
+        <section class="panel"><div class="section-header"><h2>Expired Contracts (<span id="expiredCountLabel">0</span>)</h2><button class="secondary" id="expiredToggleButton" type="button">View Expired</button></div><div class="table-wrap hidden" id="expiredSectionBody"><table><thead><tr><th>Contract</th><th>Customer</th><th>End date</th><th>Health</th><th>Action</th></tr></thead><tbody id="expiredContractsTable"></tbody></table></div></section>
+        </div>
+      </div>
+    </main>
+
+    <div class="drawer-backdrop hidden" id="formDrawer"><div class="drawer small"><div class="section-header"><h2 id="formTitle">Add</h2><button class="secondary" id="closeFormButton" type="button">Close</button></div><div class="drawer-body">
+      <p class="notice" id="directoryNotice"></p>
+      <form id="customerForm" class="hidden"><div class="grid"><label>Customer name <input id="customerName" required /></label><label>Customer email <input id="customerEmail" type="email" /></label><label>Customer phone <input id="customerPhone" /></label><label>Customer code <input id="customerCode" /></label></div><button type="submit">Save customer</button></form>
+      <form id="contactForm" class="hidden"><div class="grid"><label>Customer <select id="contactCustomerSelect" required></select></label><label>Contact name <input id="contactName" required /></label><label>Contact phone <input id="contactNumber" /></label><label>Contact email <input id="contactEmail" type="email" /></label><label>Designation <input id="contactDesignation" /></label></div><button type="submit">Save contact</button></form>
+      <form id="contractForm" class="hidden"><div class="grid"><label>Customer <select id="contractCustomerSelect"></select></label><label>Contact person <select id="contractContactSelect"></select></label><label>Company <input id="companyName" required /></label><label>Contract <input id="contractName" required /></label><label>Contract number <input id="contractNumber" placeholder="Auto generated" /></label><label>Contract date <input id="contractDate" type="date" /></label><label>Start date <input id="startDate" type="date" required /></label><label>End date <input id="endDate" type="date" required /></label><label>Renewal date <input id="renewalDate" type="date" required /></label><label>Notification email <input id="notificationEmail" type="email" required /></label><label>Status <select id="contractStatus"><option>Active</option><option>Draft</option><option>Closed</option></select></label><label>Currency <input id="currency" value="INR" /></label><label>Payment terms <input id="paymentTerms" /></label><label>Remarks <input id="remarks" /></label></div><h3>Line item</h3><div class="grid"><label>Product / service <input id="lineProduct" /></label><label>Quantity <input id="lineQuantity" type="number" min="0" step="0.01" /></label><label>Rate <input id="lineRate" type="number" min="0" step="0.01" /></label><label>Line remarks <input id="lineRemarks" /></label><div class="inline-total" id="lineTotal">Line total: 0.00</div></div><label>Notes <textarea id="notes"></textarea></label><p class="notice" id="contractNotice"></p><button type="submit">Create contract</button></form>
+      <form id="importForm" class="hidden"><label>CSV file <input id="csvFile" type="file" accept=".csv,text/csv" /></label><p class="muted">Expected columns: company_name, contract_name, start_date, end_date, renewal_date, notification_email, total_contract_value.</p><button type="submit">Import contracts</button></form>
+    </div></div></div>
+
+    <div class="drawer-backdrop hidden" id="detailDrawer"><div class="drawer"><div class="section-header"><div><h2 id="detailTitle">Contract</h2><p class="muted" id="detailSubtitle"></p></div><button class="secondary" id="closeDetailButton" type="button">Close</button></div><div class="drawer-body">
+      <div class="actions"><button id="renewButton" type="button">Renew</button><button class="secondary" id="uploadToggleButton" type="button">Upload Document</button></div>
+      <form id="renewForm" class="hidden"><div class="grid"><label>New end date <input id="renewEndDate" type="date" required /></label><label>Renewal date <input id="renewRenewalDate" type="date" /></label></div><button type="submit">Create renewal</button></form>
+      <form id="documentForm" class="hidden"><label>Document <input id="documentFile" type="file" required /></label><button type="submit">Upload</button></form>
+      <section><h3>Overview</h3><div class="detail-grid" id="detailOverview"></div></section>
+      <section><h3>Line Items</h3><div class="list" id="detailLineItems"></div></section>
+      <section><h3>Documents</h3><div class="list" id="detailDocuments"></div></section>
+      <section><h3>Activity</h3><div class="list" id="detailActivity"></div></section>
+    </div></div></div>
+
+    <script>
+      const state = { token: localStorage.getItem("muraai_token"), user: JSON.parse(localStorage.getItem("muraai_user") || "null"), expiredExpanded: false, customers: [], contacts: [], dashboard: null, allContracts: [], selectedContract: null, commandOpen: false };
+      const byId = (id) => document.getElementById(id);
+      const jsonHeaders = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${state.token}` });
+      const authHeaders = () => ({ Authorization: `Bearer ${state.token}` });
+      function setSession(user, token) { state.user = user; state.token = token; localStorage.setItem("muraai_user", JSON.stringify(user)); localStorage.setItem("muraai_token", token); renderSession(); loadReferenceData().catch(() => {}); loadDashboard(); }
+      function renderSession() { document.body.classList.toggle("authenticated", Boolean(state.user)); byId("sessionLabel").textContent = state.user ? `${state.user.username} - ${state.user.email}` : "Not signed in"; byId("logoutButton").classList.toggle("hidden", !state.user); }
+      async function api(path, options = {}) { const response = await fetch(path, options); const text = await response.text(); const payload = text ? JSON.parse(text) : null; if (!response.ok) throw new Error(payload?.error || payload?.message || "Request failed"); return payload; }
+      const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      const formatCurrency = (value, currency = "INR") => `${currency || "INR"} ${Number(value || 0).toFixed(2)}`;
+      const formatDateTime = (value) => value ? new Date(value).toLocaleString() : "-";
+      const groupBy = (rows, getter) => rows.reduce((groups, row) => { const key = getter(row) || "Unassigned"; groups[key] = groups[key] || []; groups[key].push(row); return groups; }, {});
+      const monthKey = (date) => date.toISOString().slice(0, 7);
+      function calculateDaysLeft(endDate) { const today = new Date(); today.setHours(0,0,0,0); const end = new Date(endDate); end.setHours(0,0,0,0); const days = Math.ceil((end - today) / 86400000); if (days < 0) return { days, label: "Expired", class: "expired" }; if (days <= 7) return { days, label: `${days} days`, class: "critical" }; if (days <= 30) return { days, label: `${days} days`, class: "upcoming" }; return { days, label: `${days} days`, class: "active" }; }
+      function healthClass(healthStatus) { if (healthStatus === "Expired") return "expired"; if (healthStatus === "Critical") return "critical"; if (healthStatus === "Warning") return "upcoming"; return "active"; }
+      function reminderStatus(contract) { if (!contract.last_reminder_sent_at || !contract.total_reminders_sent) return "Never sent"; const days = Math.floor((Date.now() - new Date(contract.last_reminder_sent_at)) / 86400000); if (days <= 0) return "Sent today"; if (days === 1) return "Sent yesterday"; return `Sent ${days} days ago`; }
+      async function loadReferenceData() { if (!state.token) return; const [customers, contacts] = await Promise.all([api("/api/customers", { headers: jsonHeaders() }), api("/api/contacts", { headers: jsonHeaders() })]); state.customers = customers || []; state.contacts = contacts || []; renderReferenceOptions(); }
+      function renderReferenceOptions() { const options = ['<option value="">No linked customer</option>', ...state.customers.map((customer) => `<option value="${customer.id}">${safe(customer.name)}</option>`)].join(""); byId("contractCustomerSelect").innerHTML = options; byId("contactCustomerSelect").innerHTML = options.replace("No linked customer", "Select customer"); renderContactOptions(); }
+      function renderContactOptions() { const customerId = byId("contractCustomerSelect").value; const contacts = customerId ? state.contacts.filter((contact) => String(contact.customer_id) === customerId) : state.contacts; byId("contractContactSelect").innerHTML = ['<option value="">No linked contact</option>', ...contacts.map((contact) => `<option value="${contact.id}">${safe(contact.contact_name)}</option>`)].join(""); }
+      function updateLineTotal() { byId("lineTotal").textContent = `Line total: ${(Number(byId("lineQuantity").value || 0) * Number(byId("lineRate").value || 0)).toFixed(2)}`; }
+      async function loadDashboard() { if (!state.token) return; const dashboard = await api("/api/contracts/dashboard", { headers: jsonHeaders() }); state.dashboard = dashboard; state.allContracts = [...(dashboard.critical_contracts || []), ...(dashboard.ending_soon_contracts || []), ...(dashboard.active_contracts || []), ...(dashboard.expired_contracts || [])].filter((contract, index, list) => list.findIndex((item) => item.id === contract.id) === index); byId("totalContracts").textContent = dashboard.total_contracts; byId("activeContracts").textContent = dashboard.active_count; byId("endingSoonContracts").textContent = dashboard.ending_soon_count; byId("criticalContracts").textContent = dashboard.critical_count; byId("expiredContracts").textContent = dashboard.expired_count; byId("totalRemindersSent").textContent = dashboard.total_reminders_sent; renderForecast(); renderEnterpriseSurfaces(); renderContracts(); }
+      function renderForecast() { const now = new Date(); const thisMonth = monthKey(now); const nextMonth = monthKey(new Date(now.getFullYear(), now.getMonth() + 1, 1)); const current = state.allContracts.filter((c) => monthKey(new Date(c.end_date)) === thisMonth); const upcoming = state.allContracts.filter((c) => monthKey(new Date(c.end_date)) === nextMonth); const sum = (rows) => rows.reduce((total, c) => total + Number(c.total_contract_value || 0), 0); byId("endingThisMonth").textContent = current.length; byId("endingNextMonth").textContent = upcoming.length; byId("valueThisMonth").textContent = sum(current).toFixed(0); byId("valueNextMonth").textContent = sum(upcoming).toFixed(0); byId("forecastValue").textContent = formatCurrency(sum(current) + sum(upcoming), "INR"); }
+      function renderBarChart(targetId, rows) {
+        const max = Math.max(1, ...rows.map((row) => row.value));
+        byId(targetId).innerHTML = rows.length ? rows.map((row) => `<div class="bar-row"><span>${safe(row.label)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, (row.value / max) * 100)}%"></div></div><strong>${safe(row.display ?? row.value)}</strong></div>`).join("") : '<p class="muted">No data yet</p>';
+      }
+      function renderEnterpriseSurfaces() {
+        const d = state.dashboard || {};
+        const statusRows = [{ label: "Active", value: d.active_count || 0 }, { label: "Ending", value: d.ending_soon_count || 0 }, { label: "Critical", value: d.critical_count || 0 }, { label: "Expired", value: d.expired_count || 0 }];
+        renderBarChart("statusChart", statusRows);
+        const byMonth = groupBy(state.allContracts, (contract) => monthKey(new Date(contract.end_date)));
+        renderBarChart("revenueTrend", Object.entries(byMonth).sort().slice(-6).map(([label, rows]) => ({ label, value: rows.reduce((sum, contract) => sum + Number(contract.total_contract_value || 0), 0), display: rows.length })));
+        const byCustomer = groupBy(state.allContracts, (contract) => contract.company_name);
+        renderBarChart("topCustomers", Object.entries(byCustomer).map(([label, rows]) => ({ label, value: rows.reduce((sum, contract) => sum + Number(contract.total_contract_value || 0), 0), display: rows.length })).sort((a, b) => b.value - a.value).slice(0, 6));
+        const products = groupBy(state.allContracts, (contract) => contract.contract_name);
+        renderBarChart("productDistribution", Object.entries(products).map(([label, rows]) => ({ label, value: rows.length })).sort((a, b) => b.value - a.value).slice(0, 6));
+        byId("renewalCalendar").innerHTML = state.allContracts.slice().filter((contract) => new Date(contract.end_date) >= new Date()).sort((a, b) => new Date(a.end_date) - new Date(b.end_date)).slice(0, 6).map((contract) => `<div class="calendar-card"><strong>${safe(contract.end_date)}</strong><br><span>${safe(contract.contract_name)}</span><br><span class="muted">${safe(contract.company_name)}</span></div>`).join("") || '<div class="calendar-card muted">No upcoming renewals</div>';
+        const stages = ["Draft", "Manager", "Finance", "Legal", "Approved"];
+        byId("approvalBoard").innerHTML = stages.map((stage) => `<div class="kanban-card"><h3>${stage}</h3>${stage === "Draft" ? `<p>${(d.critical_contracts || []).length} contracts need review</p>` : '<p class="muted">No pending items</p>'}</div>`).join("");
+        byId("approvalCount").textContent = `${(d.critical_contracts || []).length} pending`;
+      }
+      function filterRows(rows, section) { const search = byId("searchInput").value.trim().toLowerCase(); const health = byId("healthFilter").value; const status = byId("statusFilter").value; const setup = byId("setupFilter").value; return rows.filter((contract) => { const haystack = [contract.contract_name, contract.company_name, contract.contract_number, contract.customer_id].join(" ").toLowerCase(); if (search && !haystack.includes(search)) return false; if (health && contract.health_status !== health) return false; if (status && status !== section) return false; if (setup === "missing-email" && contract.notification_email) return false; if (setup === "missing-document" && Number(contract.document_count || 0) > 0) return false; return true; }); }
+      function contractRows(rows, section) { const filtered = filterRows(rows || [], section); if (!filtered.length) return '<tr><td class="empty-row" colspan="5">No contracts</td></tr>'; return filtered.map((contract) => { const health = contract.health_status || "Healthy"; const days = calculateDaysLeft(contract.end_date); return `<tr class="clickable" data-open-contract="${contract.id}"><td><strong>${safe(contract.contract_name)}</strong><br><span class="muted">${safe(contract.contract_number || "No number")}</span></td><td>${safe(contract.company_name)}</td><td>${safe(contract.end_date)}<br><span class="muted">${days.label}</span></td><td><span class="status ${healthClass(health)}">${safe(health)}</span></td><td><button class="secondary" type="button" data-open-contract="${contract.id}">View</button></td></tr>`; }).join(""); }
+      function renderContracts() { const d = state.dashboard || {}; const critical = d.critical_contracts || []; const endingSoon = (d.ending_soon_contracts || []).filter((contract) => !critical.some((item) => item.id === contract.id)); byId("criticalContractsTable").innerHTML = contractRows(critical, "critical"); byId("endingSoonContractsTable").innerHTML = contractRows(endingSoon, "endingSoon"); byId("activeContractsTable").innerHTML = contractRows(d.active_contracts || [], "active"); byId("expiredContractsTable").innerHTML = contractRows(d.expired_contracts || [], "expired"); byId("criticalCountBadge").textContent = critical.length; byId("endingSoonCountBadge").textContent = endingSoon.length; byId("activeCountBadge").textContent = d.active_count || 0; byId("expiredCountLabel").textContent = d.expired_count || 0; byId("visibleCount").textContent = Math.floor(document.querySelectorAll("[data-open-contract]").length / 2) + " visible"; renderExpiredVisibility(); }
+      function renderExpiredVisibility() { byId("expiredSectionBody").classList.toggle("hidden", !state.expiredExpanded); byId("expiredToggleButton").textContent = state.expiredExpanded ? "Hide Expired" : "View Expired"; }
+      function openForm(type) { byId("formDrawer").classList.remove("hidden"); ["customerForm", "contactForm", "contractForm", "importForm"].forEach((id) => byId(id).classList.add("hidden")); const titles = { customer: "Add Customer", contact: "Add Contact", contract: "Add Contract", import: "Import CSV" }; byId("formTitle").textContent = titles[type]; byId(`${type}Form`).classList.remove("hidden"); }
+      function closeForm() { byId("formDrawer").classList.add("hidden"); }
+      function closeDetail() { byId("detailDrawer").classList.add("hidden"); state.selectedContract = null; }
+      function detailItem(label, value) { return `<div class="detail-item"><span>${safe(label)}</span>${safe(value)}</div>`; }
+      async function openContract(contractId) { const contract = await api(`/api/contracts/${contractId}`, { headers: jsonHeaders() }); const [lineItems, documents, history, notifications] = await Promise.all([api(`/api/contracts/${contractId}/line-items`, { headers: jsonHeaders() }).catch(() => []), api(`/api/contracts/${contractId}/documents`, { headers: jsonHeaders() }).catch(() => []), api(`/api/contracts/${contractId}/renewal-history`, { headers: jsonHeaders() }).catch(() => []), api(`/api/notifications/history/${contractId}`, { headers: jsonHeaders() }).catch(() => [])]); state.selectedContract = contract; byId("detailDrawer").classList.remove("hidden"); byId("detailTitle").textContent = contract.contract_name; byId("detailSubtitle").textContent = `${contract.company_name} | ${contract.contract_number || "No contract number"}`; byId("renewEndDate").value = contract.end_date || ""; byId("renewRenewalDate").value = contract.renewal_date || ""; const customer = state.customers.find((item) => item.id === contract.customer_id); const contact = state.contacts.find((item) => item.id === contract.contact_person_id); byId("detailOverview").innerHTML = detailItem("Customer", customer?.name || contract.company_name) + detailItem("Contact", contact?.contact_name || "-") + detailItem("End date", contract.end_date) + detailItem("Health", contract.health_status || "Healthy") + detailItem("Value", formatCurrency(contract.total_contract_value, contract.currency)) + detailItem("Reminder", `${reminderStatus(contract)} | ${contract.total_reminders_sent || 0} sent`) + detailItem("Payment terms", contract.payment_terms || "-") + detailItem("Notes", contract.notes || contract.remarks || "-"); byId("detailLineItems").innerHTML = lineItems.length ? lineItems.map((item) => `<div class="list-item"><strong>${safe(item.product)}</strong><br><span class="muted">${item.quantity} x ${item.rate} = ${formatCurrency(item.amount, contract.currency)}</span></div>`).join("") : '<div class="list-item muted">No line items</div>'; byId("detailDocuments").innerHTML = documents.length ? documents.map((doc) => `<div class="list-item file-row"><span>${safe(doc.file_name)}</span><span class="muted">${formatDateTime(doc.uploaded_at)}</span></div>`).join("") : '<div class="list-item muted">No documents uploaded</div>'; const events = [{ label: "Contract created", date: contract.created_at }, { label: "Contract updated", date: contract.updated_at }, ...notifications.map((item) => ({ label: `${item.notification_type} ${item.status}`, date: item.send_date, message: item.message })), ...history.map((item) => ({ label: `Version ${item.contract_version || "-"}`, date: item.created_at || item.start_date }))].filter((event) => event.date).sort((a, b) => new Date(b.date) - new Date(a.date)); byId("detailActivity").innerHTML = events.length ? events.map((event) => `<div class="list-item"><strong>${safe(event.label)}</strong><br><span class="muted">${formatDateTime(event.date)}</span>${event.message ? `<p>${safe(event.message)}</p>` : ""}</div>`).join("") : '<div class="list-item muted">No activity yet</div>'; }
+      byId("authForm").addEventListener("submit", async (event) => { event.preventDefault(); const mode = event.submitter.dataset.mode; byId("authNotice").textContent = ""; try { const payload = { email: byId("email").value, password: byId("password").value }; if (mode === "register") payload.username = byId("username").value; const result = await api(`/api/auth/${mode}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); setSession(result.user, result.token); } catch (error) { byId("authNotice").textContent = error.message; } });
+      byId("customerForm").addEventListener("submit", async (event) => { event.preventDefault(); try { await api("/api/customers", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ name: byId("customerName").value, email: byId("customerEmail").value || null, phone: byId("customerPhone").value || null, customer_code: byId("customerCode").value || null }) }); event.target.reset(); byId("directoryNotice").textContent = "Customer saved"; await loadReferenceData(); } catch (error) { byId("directoryNotice").textContent = error.message; } });
+      byId("contactForm").addEventListener("submit", async (event) => { event.preventDefault(); try { const customerId = byId("contactCustomerSelect").value; if (!customerId) throw new Error("Select a customer first"); await api(`/api/customers/${customerId}/contacts`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ contact_name: byId("contactName").value, contact_number: byId("contactNumber").value || null, email: byId("contactEmail").value || null, designation: byId("contactDesignation").value || null }) }); event.target.reset(); byId("directoryNotice").textContent = "Contact saved"; await loadReferenceData(); } catch (error) { byId("directoryNotice").textContent = error.message; } });
+      byId("contractForm").addEventListener("submit", async (event) => { event.preventDefault(); const lineItems = byId("lineProduct").value.trim() ? [{ product: byId("lineProduct").value.trim(), quantity: byId("lineQuantity").value || 0, rate: byId("lineRate").value || 0, remarks: byId("lineRemarks").value }] : []; try { await api("/api/contracts", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ company_name: byId("companyName").value, contract_name: byId("contractName").value, contract_number: byId("contractNumber").value || undefined, customer_id: byId("contractCustomerSelect").value || null, contact_person_id: byId("contractContactSelect").value || null, contract_date: byId("contractDate").value || null, start_date: byId("startDate").value, end_date: byId("endDate").value, renewal_date: byId("renewalDate").value, status: byId("contractStatus").value, currency: byId("currency").value || "INR", payment_terms: byId("paymentTerms").value, remarks: byId("remarks").value, notification_enabled: true, notification_email: byId("notificationEmail").value, notification_mobile: false, notes: byId("notes").value, line_items: lineItems }) }); event.target.reset(); byId("currency").value = "INR"; updateLineTotal(); closeForm(); loadDashboard(); } catch (error) { byId("contractNotice").textContent = error.message; } });
+      byId("documentForm").addEventListener("submit", async (event) => { event.preventDefault(); if (!state.selectedContract) return; const file = byId("documentFile").files[0]; if (!file) return; const data = new FormData(); data.append("file", file); const response = await fetch(`/api/contracts/${state.selectedContract.id}/documents`, { method: "POST", headers: authHeaders(), body: data }); if (!response.ok) alert("Upload failed"); byId("documentFile").value = ""; byId("documentForm").classList.add("hidden"); openContract(state.selectedContract.id); });
+      byId("renewForm").addEventListener("submit", async (event) => { event.preventDefault(); if (!state.selectedContract) return; await api(`/api/contracts/${state.selectedContract.id}/renew`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ end_date: byId("renewEndDate").value, renewal_date: byId("renewRenewalDate").value || byId("renewEndDate").value }) }); byId("renewForm").classList.add("hidden"); await loadDashboard(); closeDetail(); });
+      byId("importForm").addEventListener("submit", async (event) => { event.preventDefault(); const file = byId("csvFile").files[0]; if (!file) return; const rows = (await file.text()).trim().split(/\r?\n/); const columns = rows.shift().split(",").map((h) => h.trim()); for (const row of rows) { const values = row.split(","); const record = Object.fromEntries(columns.map((h, i) => [h, values[i]?.trim() || ""])); await api("/api/contracts", { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ company_name: record.company_name, contract_name: record.contract_name, start_date: record.start_date, end_date: record.end_date, renewal_date: record.renewal_date || record.end_date, notification_enabled: true, notification_email: record.notification_email, currency: record.currency || "INR", line_items: record.total_contract_value ? [{ product: record.contract_name, quantity: 1, rate: record.total_contract_value }] : [] }) }); } event.target.reset(); closeForm(); loadDashboard(); });
+      byId("customerButton").addEventListener("click", () => openForm("customer"));
+      byId("contactButton").addEventListener("click", () => openForm("contact"));
+      byId("contractButton").addEventListener("click", () => openForm("contract"));
+      byId("importButton").addEventListener("click", () => openForm("import"));
+      byId("closeFormButton").addEventListener("click", closeForm);
+      byId("closeDetailButton").addEventListener("click", closeDetail);
+      byId("contractCustomerSelect").addEventListener("change", renderContactOptions);
+      byId("lineQuantity").addEventListener("input", updateLineTotal);
+      byId("lineRate").addEventListener("input", updateLineTotal);
+      ["searchInput", "healthFilter", "statusFilter", "setupFilter", "globalSearch"].forEach((id) => byId(id).addEventListener("input", () => { if (id === "globalSearch") byId("searchInput").value = byId("globalSearch").value; renderContracts(); }));
+      byId("commandButton").addEventListener("click", () => openForm("contract"));
+      byId("exportCsvButton").addEventListener("click", exportContractsCsv);
+      byId("printReportButton").addEventListener("click", () => window.print());
+      document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); openForm("contract"); } });
+      byId("refreshButton").addEventListener("click", loadDashboard);
+      byId("expiredToggleButton").addEventListener("click", () => { state.expiredExpanded = !state.expiredExpanded; renderExpiredVisibility(); });
+      byId("renewButton").addEventListener("click", () => byId("renewForm").classList.toggle("hidden"));
+      byId("uploadToggleButton").addEventListener("click", () => byId("documentForm").classList.toggle("hidden"));
+      document.addEventListener("click", (event) => { const target = event.target.closest("[data-open-contract]"); if (target) openContract(target.dataset.openContract); if (event.target === byId("formDrawer")) closeForm(); if (event.target === byId("detailDrawer")) closeDetail(); });
+      function exportContractsCsv() { const header = ["contract_name", "company_name", "end_date", "health_status", "total_contract_value"]; const rows = state.allContracts.map((contract) => header.map((key) => `"${String(contract[key] ?? "").replaceAll('"', '""')}"`).join(",")); const blob = new Blob([[header.join(","), ...rows].join("\n")], { type: "text/csv" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "contracts-report.csv"; link.click(); URL.revokeObjectURL(link.href); }
+      byId("logoutButton").addEventListener("click", () => { localStorage.removeItem("muraai_user"); localStorage.removeItem("muraai_token"); state.user = null; state.token = null; state.dashboard = null; state.allContracts = []; renderSession(); ["totalContracts", "activeContracts", "endingSoonContracts", "criticalContracts", "expiredContracts", "totalRemindersSent"].forEach((id) => byId(id).textContent = "0"); });
+      renderSession();
+      if (state.token) { loadReferenceData().catch(() => {}); loadDashboard().catch(() => {}); }
+    </script>
+  </body>
+</html>
