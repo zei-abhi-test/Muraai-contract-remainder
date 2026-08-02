@@ -137,11 +137,15 @@ docker-compose up -d
 
 ### Contracts
 - `GET /api/contracts` - List contracts (optional: `?user_id=1&upcoming_only=true`)
+- `GET /api/contracts?status=active` - Contracts with more than 30 days remaining
+- `GET /api/contracts?status=ending-soon` - Contracts ending today through the next 30 days
+- `GET /api/contracts?status=critical` - Contracts ending today through the next 7 days
+- `GET /api/contracts?status=expired` - Contracts with `end_date` before today
 - `POST /api/contracts` - Create contract
 - `GET /api/contracts/<id>` - Get contract
 - `PUT /api/contracts/<id>` - Update contract
 - `DELETE /api/contracts/<id>` - Delete contract
-- `GET /api/contracts/dashboard` - Dashboard data (optional: `?user_id=1`)
+- `GET /api/contracts/dashboard` - Dashboard counts and grouped lists for active, ending soon, and expired contracts
 
 ### Notifications
 - `GET /api/notifications` - List notifications (optional: `?contract_id=1`)
@@ -189,11 +193,99 @@ curl -X POST http://localhost:5000/api/contracts \
   }'
 ```
 
+### Customer, Contact, and Line Item Workflow
+
+Create reusable customers and contacts first, then link them when creating contracts. Contract line items automatically calculate `amount = quantity * rate`, and the contract stores `total_contract_value`.
+
+```bash
+# Replace TOKEN with the JWT from login.
+curl -X POST http://localhost:5000/api/customers \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Acme Corp",
+    "customer_code": "ACM-001",
+    "email": "admin@acme.example",
+    "phone": "+91 9876543210"
+  }'
+
+curl -X POST http://localhost:5000/api/customers/1/contacts \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contact_name": "Priya Sharma",
+    "contact_number": "+91 9876543210",
+    "email": "priya@acme.example",
+    "designation": "Procurement Manager"
+  }'
+
+curl -X POST http://localhost:5000/api/contracts \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company_name": "Acme Corp",
+    "contract_name": "Software License",
+    "customer_id": 1,
+    "contact_person_id": 1,
+    "contract_date": "2026-01-01",
+    "start_date": "2026-01-01",
+    "end_date": "2026-12-31",
+    "renewal_date": "2026-12-31",
+    "status": "Active",
+    "currency": "INR",
+    "payment_terms": "Net 30",
+    "notification_enabled": true,
+    "notification_email": "john@example.com",
+    "line_items": [
+      {"product": "Cloud license", "quantity": 10, "rate": 350}
+    ]
+  }'
+```
+
+### Documents, Renewals, and Reports
+
+```bash
+curl -X POST http://localhost:5000/api/contracts/1/documents \
+  -H "Authorization: Bearer TOKEN" \
+  -F "file=@agreement.pdf"
+
+curl -X POST http://localhost:5000/api/contracts/1/renew \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"end_date": "2027-12-31", "renewal_date": "2027-12-31"}'
+
+curl -H "Authorization: Bearer TOKEN" http://localhost:5000/api/contracts/1/renewal-history
+curl -H "Authorization: Bearer TOKEN" http://localhost:5000/api/reports/line-items
+```
+
+Renewal is append-only: the old contract is preserved, and the renewed contract is linked with `parent_contract_id`, `previous_contract_id`, and `contract_version`.
+
 ### Get Dashboard
 
 ```bash
-curl http://localhost:5000/api/contracts/dashboard?user_id=1
+curl -H "Authorization: Bearer TOKEN" http://localhost:5000/api/contracts/dashboard
 ```
+
+### Filter Contracts by Status
+
+```bash
+curl http://localhost:5000/api/contracts?status=active
+curl http://localhost:5000/api/contracts?status=ending-soon
+curl http://localhost:5000/api/contracts?status=critical
+curl http://localhost:5000/api/contracts?status=expired
+```
+
+Status rules:
+- Active: `end_date` is more than 30 days from today
+- Ending Soon: `end_date` is today through the next 30 days
+- Critical: `end_date` is today through the next 7 days
+- Expired: `end_date` is before today
+
+Contract responses include reminder tracking fields:
+- `health_status`: Healthy, Warning, Critical, or Expired
+- `next_reminder_date`: the next scheduled reminder date based on the 30, 28, 26 ... 0 day schedule
+- `total_reminders_sent`: sent notification count from the existing `Notification` table
+- `last_reminder_sent_at`, `last_reminder_type`, `last_reminder_message`
 
 ## Scheduled Jobs
 
