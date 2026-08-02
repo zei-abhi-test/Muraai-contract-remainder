@@ -48,7 +48,6 @@ class SchedulerService:
 
         # Start the scheduler
         self.scheduler.start()
-        self.check_and_send_notifications()
         self.logger.info(
             "Scheduler started successfully",
             context={"scheduled_jobs": len(self.scheduler.get_jobs())},

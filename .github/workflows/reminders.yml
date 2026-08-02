@@ -1,7 +1,6 @@
 name: Daily Contract Reminders
 
 on:
-  push:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
@@ -13,4 +12,7 @@ jobs:
     steps:
       - name: Trigger reminders
         run: |
-          curl -X GET https://muraai-contract-remainder.onrender.com/run-reminders
+          curl -X GET -H "X-Cron-Secret: $CRON_SECRET" \
+            https://muraai-contract-remainder.onrender.com/run-reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

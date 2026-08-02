@@ -1,0 +1,19 @@
+[Unit]
+Description=Muraai Contract Scheduler (reminders)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/muraai-contract-reminder
+Environment=PATH=/path/to/muraai-contract-reminder/venv/bin
+EnvironmentFile=/path/to/muraai-contract-reminder/.env
+Environment=RUN_SCHEDULER=true
+ExecStart=/path/to/muraai-contract-reminder/venv/bin/gunicorn -w 1 -b 127.0.0.1:5001 src.main:app
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

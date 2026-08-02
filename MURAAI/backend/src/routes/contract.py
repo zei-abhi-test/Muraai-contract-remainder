@@ -1411,7 +1411,7 @@ def get_dashboard_full_data(current_user):
             db.session.execute(db.text("SELECT 1"))
         except Exception:
             db_ok = False
-        scheduler_enabled = os.environ.get("SCHEDULER_ENABLED", "false").lower() == "true"
+        scheduler_enabled = os.environ.get("RUN_SCHEDULER", "false").lower() == "true"
 
         return jsonify({
             "summary": {
