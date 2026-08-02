@@ -1,3 +1,4 @@
+import hmac
 import os
 import sys
 from dotenv import load_dotenv
@@ -10,7 +11,7 @@ load_dotenv()
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from src.models.user import db
 from src.routes.user import user_bp
@@ -112,13 +113,13 @@ if os.getenv("AUTO_CREATE_TABLES", "false").lower() == "true" or app.config[
 
 # Initialize services
 notification_service.init_app(app)
-if os.getenv("SCHEDULER_ENABLED", "true").lower() == "true" and os.getenv("FLASK_ENV") != "testing":
+if os.getenv("RUN_SCHEDULER", "false").lower() == "true" and os.getenv("FLASK_ENV") != "testing":
     scheduler_service.init_app(app)
 else:
     logger.info(
         "Scheduler startup skipped",
         context={
-            "scheduler_enabled": os.getenv("SCHEDULER_ENABLED", "true"),
+            "run_scheduler": os.getenv("RUN_SCHEDULER", "false"),
             "environment": os.getenv("FLASK_ENV", "development"),
         },
     )
@@ -161,62 +162,15 @@ app.register_blueprint(tasks_bp, url_prefix="/api")
 app.register_blueprint(timeline_bp, url_prefix="/api")
 
 
-@app.route("/test-email")
-def test_email():
-    success, message = notification_service.send_email_notification(
-        to_email="rekha.mh@muraai.com",
-        subject="Muraai Test Email",
-        body="<h1>Email system working!</h1>"
-    )
-
-    return {
-        "success": success,
-        "message": message
-    }
-
-
-@app.route("/debug-resend")
-def debug_resend():
-    import os
-
-    key = os.getenv("RESEND_API_KEY")
-
-    return {
-        "exists": key is not None,
-        "prefix": key[:8] if key else None,
-        "length": len(key) if key else 0
-    }
-
-
 @app.route("/run-reminders", methods=["GET", "POST"])
 def run_reminders():
+    expected = os.getenv("CRON_SECRET")
+    supplied = request.headers.get("X-Cron-Secret", "")
+    if not expected or not supplied or not hmac.compare_digest(supplied, expected):
+        return jsonify({"error": "Unauthorized"}), 401
+
     results = notification_service.check_and_send_notifications()
     return results
-
-
-@app.route("/test-resend")
-def test_resend():
-    import requests
-    import os
-
-    response = requests.post(
-        "https://api.resend.com/emails",
-        headers={
-            "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "from": "Muraai <onboarding@resend.dev>",
-            "to": ["rekha.mh@muraai.com"],
-            "subject": "Resend Test",
-            "html": "<h1>Hello from Muraai</h1>"
-        }
-    )
-
-    return {
-        "status": response.status_code,
-        "response": response.text
-    }
 
 
 # Health check endpoint
@@ -261,4 +215,4 @@ def serve(path):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
     debug = os.getenv("FLASK_ENV") == "development"
-    app.run(host="127.0.0.1", port=8000, debug=debug)
+    app.run(host="0.0.0.0", port=port, debug=debug)

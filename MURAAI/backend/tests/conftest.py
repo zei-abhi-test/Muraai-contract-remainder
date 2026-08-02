@@ -5,7 +5,7 @@ os.environ["EMAIL_USER"] = "test@example.com"
 os.environ["EMAIL_PASSWORD"] = "test-password"
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["FLASK_ENV"] = "testing"
-os.environ["SCHEDULER_ENABLED"] = "false"
+os.environ["RUN_SCHEDULER"] = "false"
 
 import pytest
 
