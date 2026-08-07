@@ -32,6 +32,7 @@ from src.services.auth import token_required, require_resource
 from src.services.logging_config import get_structured_logger
 from src.services import contract_lifecycle
 from src.services.contract_lifecycle import LifecycleError
+from src.services.contract_totals import recalculate_contract_total
 from src.services.automation_engine import execute_triggers
 from src.services.task_service import generate_task
 from src.services.domain_event import dispatcher
@@ -152,13 +153,7 @@ def generate_sku(category, user_id=None):
     return f"{prefix}-{sequence:06d}"
 
 
-def recalculate_contract_total(contract):
-    total = sum(
-        (line_item.line_total or Decimal("0"))
-        for line_item in ContractLineItem.query.filter_by(contract_id=contract.id).all()
-    )
-    contract.total_contract_value = total
-    return total
+
 
 
 def create_line_item_from_payload(contract_id, payload, user_id=None):

@@ -31,6 +31,7 @@ from src.services.validators import ContractCreate, ContractUpdate, Notification
 from src.services.logging_config import get_structured_logger
 from src.services import contract_lifecycle
 from src.services.contract_lifecycle import LifecycleError
+from src.services.contract_totals import recalculate_contract_total
 from src.services.workflow_engine import evaluate_workflow, create_assignment
 from src.services.automation_engine import execute_triggers
 from src.services.task_service import generate_task
@@ -174,9 +175,7 @@ def create_contract_line_item(contract_id, payload, user_id=None):
     return line_item
 
 
-def recalculate_contract_total(contract):
-    items = ContractLineItem.query.filter_by(contract_id=contract.id).all()
-    contract.total_contract_value = sum((item.line_total or Decimal("0")) for item in items)
+
 def notification_stats_for_contracts(contract_ids):
     """Return reminder stats keyed by contract id using existing notifications."""
     stats = {
@@ -265,17 +264,65 @@ def get_contracts(current_user):
             status = "ending-soon"
 
         query = apply_contract_status_filter(query, status)
-        contracts = order_contracts_by_status(query, status).all()
+
+        search = request.args.get("search", "").strip()
+        if search:
+            pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Contract.contract_name.ilike(pattern),
+                    Contract.company_name.ilike(pattern),
+                    Contract.contract_number.ilike(pattern),
+                )
+            )
+
+        sortable_fields = {
+            "contract_name": Contract.contract_name,
+            "company_name": Contract.company_name,
+            "start_date": Contract.start_date,
+            "end_date": Contract.end_date,
+            "status": Contract.status,
+            "created_at": Contract.created_at,
+        }
+        sort_by = request.args.get("sort_by")
+        sort_column = sortable_fields.get(sort_by)
+        if sort_column is not None:
+            sort_dir = request.args.get("sort_dir", "desc").lower()
+            query = query.order_by(
+                sort_column.asc() if sort_dir == "asc" else sort_column.desc()
+            )
+        else:
+            query = order_contracts_by_status(query, status)
+
+        page = request.args.get("page", 1, type=int) or 1
+        per_page = request.args.get("per_page", 25, type=int) or 25
+        page = max(page, 1)
+        per_page = max(1, min(per_page, 100))
+
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
         logger.info(
             "Contracts retrieved",
             context={
-                "contract_count": len(contracts),
+                "contract_count": paginated.total,
                 "user_id": current_user.id,
                 "upcoming_only": upcoming_only,
                 "status": status,
+                "search": search,
+                "sort_by": sort_by,
             },
         )
-        return jsonify(contracts_to_dict(contracts)), 200
+        return (
+            jsonify(
+                {
+                    "items": contracts_to_dict(paginated.items),
+                    "page": paginated.page,
+                    "per_page": paginated.per_page,
+                    "total": paginated.total,
+                    "total_pages": paginated.pages,
+                }
+            ),
+            200,
+        )
     except Exception as e:
         logger.error(
             "Failed to retrieve contracts",
