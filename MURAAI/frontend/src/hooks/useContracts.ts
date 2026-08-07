@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { contractsApi } from '@/api/contracts'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { contractsApi, type ContractFilters } from '@/api/contracts'
 import { purchaseOrdersApi } from '@/api/purchaseOrders'
 import { invoicesApi } from '@/api/invoices'
 import { approvalsApi } from '@/api/approvals'
@@ -8,11 +8,11 @@ import { getApiErrorMessage } from '@/lib/errors'
 import { activityKeys } from '@/hooks/useActivity'
 import { toast } from 'sonner'
 
-export function useContracts(filters: any = {}) {
+export function useContracts(filters: ContractFilters = {}) {
   return useQuery({
     queryKey: queryKeys.contracts.list(filters),
     queryFn: () => contractsApi.getContracts(filters),
-    initialData: [],
+    placeholderData: keepPreviousData,
   })
 }
 

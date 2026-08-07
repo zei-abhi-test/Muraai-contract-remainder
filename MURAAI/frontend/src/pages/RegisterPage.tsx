@@ -116,7 +116,7 @@ export function RegisterPage() {
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   )
 }

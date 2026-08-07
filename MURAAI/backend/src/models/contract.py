@@ -45,7 +45,7 @@ class Customer(db.Model):
     address = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     def to_dict(self):
         return {
@@ -90,9 +90,9 @@ class Contract(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_name = db.Column(db.String(200), nullable=False)
     contract_name = db.Column(db.String(200), nullable=False)
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    renewal_date = db.Column(db.Date, nullable=False)
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date, nullable=False, index=True)
+    renewal_date = db.Column(db.Date, nullable=False, index=True)
     notification_enabled = db.Column(db.Boolean, default=True)
     notification_email = db.Column(db.String(120), nullable=True)
     notification_mobile = db.Column(db.Boolean, default=False)
@@ -106,7 +106,7 @@ class Contract(db.Model):
     )
     contract_type_id = db.Column(db.Integer, db.ForeignKey("contract_type.id"), nullable=True)
     contract_date = db.Column(db.Date, nullable=True)
-    status = db.Column(db.String(50), default="Active")
+    status = db.Column(db.String(50), default="Active", index=True)
     currency = db.Column(db.String(10), default="INR")
     payment_terms = db.Column(db.Text, nullable=True)
     remarks = db.Column(db.Text, nullable=True)
@@ -141,7 +141,7 @@ class Contract(db.Model):
     retention_until = db.Column(db.Date, nullable=True)
 
     # Foreign key to link contracts to users
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     def __repr__(self):
         return f"<Contract {self.contract_name} for {self.company_name}>"
@@ -237,7 +237,7 @@ class Contract(db.Model):
 
 class ContractLineItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True)
     sku = db.Column(db.String(100), nullable=True)
     product_name = db.Column(db.String(200), nullable=False)
@@ -296,7 +296,7 @@ class ContractLineItem(db.Model):
 
 class ContractDocument(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True, index=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey("invoice.id"), nullable=True)
     po_id = db.Column(db.Integer, db.ForeignKey("purchase_order.id"), nullable=True)
     file_name = db.Column(db.String(255), nullable=False)
@@ -464,10 +464,10 @@ class ContractRenewal(db.Model):
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False, index=True)
     notification_type = db.Column(db.String(50), nullable=False)  # 'email' or 'mobile'
-    send_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(50), default="pending")  # 'sent', 'failed', 'pending'
+    send_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    status = db.Column(db.String(50), default="pending", index=True)  # 'sent', 'failed', 'pending'
     message = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
@@ -498,7 +498,7 @@ class Product(db.Model):
     status = db.Column(db.String(50), default="active")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     def to_dict(self):
         return {
@@ -526,10 +526,10 @@ class ContractApproval(db.Model):
     """
 
     id = db.Column(db.Integer, primary_key=True)
-    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False, index=True)
     approver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     requested_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    status = db.Column(db.String(50), nullable=False, default="Pending")
+    status = db.Column(db.String(50), nullable=False, default="Pending", index=True)
     comments = db.Column(db.Text, nullable=True)
     approval_level = db.Column(db.Integer, nullable=True, default=1)
     workflow_assignment_id = db.Column(db.Integer, db.ForeignKey("workflow_assignment.id"), nullable=True)
@@ -572,14 +572,14 @@ class PurchaseOrder(db.Model):
     vendor = db.Column(db.String(200), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
     amount = db.Column(db.Numeric(14, 2), nullable=False, default=0)
-    status = db.Column(db.String(50), nullable=False, default="Draft")
+    status = db.Column(db.String(50), nullable=False, default="Draft", index=True)
     issue_date = db.Column(db.Date, nullable=True)
     expected_delivery = db.Column(db.Date, nullable=True)
     currency = db.Column(db.String(10), nullable=True, default="INR")
     remarks = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     def to_dict(self, contract_ids=None):
         return {
@@ -619,7 +619,7 @@ class PurchaseOrderContract(db.Model):
 class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(80), nullable=False, unique=True)
-    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True, index=True)
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
     purchase_order_id = db.Column(db.Integer, db.ForeignKey("purchase_order.id"), nullable=True)
     amount = db.Column(db.Numeric(14, 2), nullable=False, default=0)
@@ -630,12 +630,12 @@ class Invoice(db.Model):
     invoice_date = db.Column(db.Date, nullable=False, default=date.today)
     due_date = db.Column(db.Date, nullable=True)
     paid_date = db.Column(db.Date, nullable=True)
-    status = db.Column(db.String(50), nullable=False, default="DRAFT")
+    status = db.Column(db.String(50), nullable=False, default="DRAFT", index=True)
     remarks = db.Column(db.Text, nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     def effective_status(self, today=None):
         """OVERDUE is derived from due_date, not stored as a separate fake value."""
@@ -712,8 +712,8 @@ class ActivityLog(db.Model):
     __tablename__ = "activity_log"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True, index=True)
     activity_type = db.Column(db.String(50), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)

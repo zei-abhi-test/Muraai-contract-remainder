@@ -143,18 +143,37 @@ def get_notification_history(current_user, contract_id):
         if not contract:
             return jsonify({"success": False, "message": "Contract not found"}), 404
 
-        notifications = (
+        notifications_query = (
             Notification.query.filter_by(contract_id=contract_id)
             .order_by(Notification.send_date.desc())
-            .all()
         )
+        page = request.args.get("page", 1, type=int) or 1
+        per_page = request.args.get("per_page", 25, type=int) or 25
+        page = max(page, 1)
+        per_page = max(1, min(per_page, 100))
+
+        paginated = notifications_query.paginate(page=page, per_page=per_page, error_out=False)
 
         logger.info(
             "Notification history retrieved",
-            context={"contract_id": contract_id, "notification_count": len(notifications)},
+            context={
+                "contract_id": contract_id,
+                "notification_count": paginated.total,
+            },
         )
 
-        return jsonify([notification.to_dict() for notification in notifications])
+        return (
+            jsonify(
+                {
+                    "items": [notification.to_dict() for notification in paginated.items],
+                    "page": paginated.page,
+                    "per_page": paginated.per_page,
+                    "total": paginated.total,
+                    "total_pages": paginated.pages,
+                }
+            ),
+            200,
+        )
 
     except Exception as e:
         logger.error(

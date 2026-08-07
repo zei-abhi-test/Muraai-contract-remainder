@@ -1,4 +1,5 @@
 import api from './axios'
+import type { Paginated } from './pagination'
 
 // Types
 export interface Contract {
@@ -98,6 +99,11 @@ export interface ContractFilters {
   user_id?: number
   upcoming_only?: boolean
   status?: 'active' | 'ending-soon' | 'critical' | 'expired'
+  page?: number
+  per_page?: number
+  search?: string
+  sort_by?: 'contract_name' | 'company_name' | 'start_date' | 'end_date' | 'status' | 'created_at'
+  sort_dir?: 'asc' | 'desc'
 }
 
 export interface DashboardData {
@@ -181,10 +187,10 @@ export interface ContractAssistance {
 
 // Contracts API
 export const contractsApi = {
-  // Get all contracts with filtering
-  getContracts: async (filters: ContractFilters = {}): Promise<Contract[]> => {
+  // Get contracts with filtering, search, sorting, and pagination
+  getContracts: async (filters: ContractFilters = {}): Promise<Paginated<Contract>> => {
     const response = await api.get('/contracts', { params: filters })
-    return response.data as Contract[]
+    return response.data as Paginated<Contract>
   },
 
   // Get single contract by ID

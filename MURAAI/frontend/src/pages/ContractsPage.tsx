@@ -9,9 +9,17 @@ import { queryClient } from '@/lib/react-query'
 import { queryKeys } from '@/lib/react-query'
 import { toast } from 'sonner'
 import { useUIStore } from '@/store/uiStore'
-import type { Contract } from '@/api/contracts'
+import type { Contract, ContractFilters } from '@/api/contracts'
+import { useDebounce } from '@/hooks/useDebounce'
 import { DataTable, type Column, Button, PageHeader, StatusBadge } from '@/components/ui'
 import api from '@/api/axios'
+
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'ending-soon', label: 'Ending Soon' },
+  { value: 'critical', label: 'Critical' },
+  { value: 'expired', label: 'Expired' },
+]
 
 const ACTION_LABELS: Record<string, string> = {
   view: 'View',
@@ -80,8 +88,20 @@ export function ContractsPage() {
   const pageSize = 15
   const setActivePage = useUIStore((state) => state.setActivePage)
   const pageParams = useUIStore((state) => state.pageParams)
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
-  const { data: contracts = [], isLoading: contractsLoading, error: contractsError } = useContracts()
+  const { data, isLoading: contractsLoading, error: contractsError } = useContracts({
+    page,
+    per_page: pageSize,
+    search: debouncedSearch || undefined,
+    status: (statusFilter || undefined) as ContractFilters['status'],
+    sort_by: (sortField || undefined) as ContractFilters['sort_by'],
+    sort_dir: sortDir,
+  })
+  const contracts = data?.items ?? []
+  const totalItems = data?.total ?? 0
+  const totalPages = data?.total_pages ?? 1
+
   const createContract = useCreateContract()
   const updateContract = useUpdateContract()
 
@@ -96,28 +116,8 @@ export function ContractsPage() {
     else { setSortField(field); setSortDir('asc') }
   }
 
-  const filteredContracts = contracts.filter(contract => {
-    const matchesSearch = contract.contract_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contract.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (contract.contract_number && contract.contract_number.toLowerCase().includes(searchQuery.toLowerCase()))
-    if (statusFilter) {
-      return matchesSearch && contract.status?.toLowerCase().replace(/\s+/g, '-') === statusFilter.toLowerCase().replace(/\s+/g, '-')
-    }
-    return matchesSearch
-  }).sort((a, b) => {
-    if (!sortField) return 0
-    const aVal = a[sortField as keyof typeof a]
-    const bVal = b[sortField as keyof typeof b]
-    if (aVal == null) return 1
-    if (bVal == null) return -1
-    const cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true })
-    return sortDir === 'asc' ? cmp : -cmp
-  })
-
-  const totalPages = Math.ceil(filteredContracts.length / pageSize)
-  const paginatedContracts = filteredContracts.slice((page - 1) * pageSize, page * pageSize)
   const handlePageChange = (newPage: number) => { setPage(newPage); setOpenMenuId(null) }
-  useEffect(() => { setPage(1) }, [searchQuery, statusFilter])
+  useEffect(() => { setPage(1) }, [debouncedSearch, statusFilter])
 
   const handleContractSubmit = (contractData: any, contractId?: number) => {
     if (contractId) {
@@ -238,7 +238,7 @@ export function ContractsPage() {
         className="bg-card border border-border rounded-xl p-6">
         <DataTable
           columns={columns}
-          data={paginatedContracts}
+          data={contracts}
           keyExtractor={c => c.id}
           isLoading={contractsLoading}
           error={contractsError ? 'Failed to load contracts. Please try again.' : null}
@@ -249,11 +249,11 @@ export function ContractsPage() {
           searchPlaceholder="Search contracts..."
           filters={
             <div className="flex items-center gap-2">
-              {['active', 'draft', 'expired', 'pending approval'].map(s => (
-                <button key={s} onClick={() => setStatusFilter(statusFilter === s ? null : s)}
+              {STATUS_FILTERS.map(({ value, label }) => (
+                <button key={value} onClick={() => setStatusFilter(statusFilter === value ? null : value)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    statusFilter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
-                  }`}>{s}</button>
+                    statusFilter === value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
+                  }`}>{label}</button>
               ))}
               {statusFilter && (
                 <button onClick={() => setStatusFilter(null)}
@@ -267,7 +267,7 @@ export function ContractsPage() {
           sortDir={sortDir}
           onSort={handleSort}
           totalPages={totalPages}
-          totalItems={filteredContracts.length}
+          totalItems={totalItems}
           pageSize={pageSize}
           currentPage={page}
           onPageChange={handlePageChange}

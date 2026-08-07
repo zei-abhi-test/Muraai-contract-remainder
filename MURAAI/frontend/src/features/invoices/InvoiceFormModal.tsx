@@ -53,7 +53,8 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
   const createInvoice = useCreateInvoice()
   const updateInvoice = useUpdateInvoice()
   const { data: customers = [] } = useCustomers()
-  const { data: contracts = [], isLoading: contractsLoading } = useContracts()
+  const { data: contractsData, isLoading: contractsLoading } = useContracts({ per_page: 100 })
+  const contracts = contractsData?.items ?? []
   const { data: purchaseOrders = [] } = usePurchaseOrders()
   const [apiError, setApiError] = useState('')
   const isEditing = !!invoice

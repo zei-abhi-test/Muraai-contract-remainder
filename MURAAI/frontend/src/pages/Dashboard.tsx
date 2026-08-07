@@ -85,14 +85,14 @@ function buildRecommendations(d: DashboardData): AIRecommendation[] {
 
 function useMissionControl() {
   const { data: dashboard, isLoading: dbLoading, error: dbError } = useDashboard()
-  const { data: activities, isLoading: actLoading } = useActivityList({ limit: 5 })
+  const { data: activities, isLoading: actLoading } = useActivityList({ per_page: 5 })
   const { data: approvals, isLoading: apprLoading } = useMyPendingApprovals()
   const isLoading = dbLoading || actLoading || apprLoading
   const error = dbError
   const data: MissionControlData | null = dashboard ? {
     todayMetrics: buildMetrics(dashboard),
     inboxItems: buildInbox(dashboard, approvals || []),
-    recentActivity: buildActivity(activities || []),
+    recentActivity: buildActivity(activities?.items ?? []),
     deadlines: buildDeadlines(dashboard),
     aiRecommendations: buildRecommendations(dashboard),
   } : null

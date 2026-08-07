@@ -37,7 +37,8 @@ export function InvoicesPage() {
 
   const { data: invoicesData, isLoading: invoicesLoading, error: invoicesError } = useInvoices({ search: searchQuery })
   const { data: customers = [] } = useCustomers()
-  const { data: contracts = [] } = useContracts()
+  const { data: contractsData } = useContracts({ per_page: 100 })
+  const contracts = contractsData?.items ?? []
   const deleteInvoice = useDeleteInvoice()
   const issueInvoice = useIssueInvoice()
   const markPaid = useMarkPaid()

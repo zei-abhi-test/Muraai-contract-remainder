@@ -560,10 +560,21 @@ const sectionComponents: Record<string, (data: ContractWorkspaceData) => React.R
   organizations: (d) => <OrganizationsSection data={d} />,
 }
 
+function toArray<T>(val: any): T[] {
+  if (Array.isArray(val)) return val
+  if (val && Array.isArray(val.approvals)) return val.approvals
+  if (val && Array.isArray(val.items)) return val.items
+  if (val && Array.isArray(val.invoices)) return val.invoices
+  if (val && Array.isArray(val.documents)) return val.documents
+  if (val && Array.isArray(val.renewals)) return val.renewals
+  if (val && Array.isArray(val.activities)) return val.activities
+  return []
+}
+
 function buildContractData(
-  c: Contract, lineItems: ContractLineItem[], docs: ContractDocument[],
-  assistance: ContractAssistance | undefined, approvals: Approval[],
-  invoices: Invoice[], renewals: Contract[], activities: ActivityItem[],
+  c: Contract, lineItems: any, docs: any,
+  assistance: ContractAssistance | undefined, approvals: any,
+  invoices: any, renewals: any, activities: any,
 ): ContractWorkspaceData {
   const hf = (assistance?.health_score?.factors || []).map(f => ({
     label: f.label, status: (f.status === 'good' ? 'healthy' : f.status || 'warning') as 'healthy' | 'warning' | 'critical',
@@ -580,29 +591,29 @@ function buildContractData(
     paymentTerms: c.payment_terms || '', owner: `User ${c.user_id}`, department: '',
     healthScore: assistance?.health_score?.score || 0, healthLevel: assistance?.health_score?.level || 'unknown',
     healthFactors: hf, riskIndicators: ri, notes: [],
-    products: (lineItems || []).map(li => ({
+    products: toArray<ContractLineItem>(lineItems).map(li => ({
       id: li.id, productName: li.product_name, sku: li.sku || '',
       quantity: li.quantity, rate: li.rate, discount: li.discount, tax: li.tax,
       lineTotal: li.line_total || li.amount,
     })),
-    renewals: (renewals || []).map((r, i) => ({
+    renewals: toArray<Contract>(renewals).map((r, i) => ({
       id: r.id, version: `v${i + 1}`, startDate: r.start_date || '',
       endDate: r.end_date || '', value: r.total_contract_value, status: r.status,
     })),
-    activity: (activities || []).map(a => ({
+    activity: toArray<ActivityItem>(activities).map(a => ({
       id: a.id, type: a.activity_type, title: a.title, description: a.description || '',
       timestamp: a.created_at, user: `User ${a.user_id}`,
     })),
-    documents: (docs || []).map(d => ({
+    documents: toArray<ContractDocument>(docs).map(d => ({
       id: d.id, fileName: d.file_name, type: d.content_type || 'Unknown',
       uploadedBy: `User ${d.uploaded_by_id || 0}`, uploadedAt: d.uploaded_at, size: '—',
     })),
     communications: [],
-    invoices: (invoices || []).map(i => ({
+    invoices: toArray<Invoice>(invoices).map(i => ({
       id: i.id, number: i.invoice_number || `INV-${i.id}`, amount: i.total || i.amount || 0,
       status: i.status, dueDate: i.due_date || '', paidDate: i.paid_date,
     })),
-    approvals: (approvals || []).map(a => ({
+    approvals: toArray<Approval>(approvals).map(a => ({
       id: a.id, step: a.approval_level || 1, approver: a.approver_name || 'Unknown',
       role: 'Approver', status: a.status as 'pending' | 'approved' | 'rejected',
       comments: a.comments || '', timestamp: a.submitted_at,
@@ -636,6 +647,15 @@ export function ContractWorkspace() {
         <FileText className="w-16 h-16 mb-4" />
         <p className="text-lg">No contract selected</p>
         <Button onClick={() => setActivePage('contracts')} variant="link">Go to Contracts</Button>
+      </div>
+    )
+  }
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <RefreshCw className="w-8 h-8 mb-4 animate-spin text-primary" />
+        <p className="text-sm font-medium">Loading contract workspace...</p>
       </div>
     )
   }
