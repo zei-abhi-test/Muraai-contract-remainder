@@ -31,7 +31,7 @@ from src.services.validators import ContractCreate, ContractUpdate, Notification
 from src.services.logging_config import get_structured_logger
 from src.services import contract_lifecycle
 from src.services.contract_lifecycle import LifecycleError
-from src.services.contract_totals import recalculate_contract_total
+from src.services.contract_totals import recalculate_contract_total, create_contract_line_item
 from src.services.workflow_engine import evaluate_workflow, create_assignment
 from src.services.automation_engine import execute_triggers
 from src.services.task_service import generate_task
@@ -123,56 +123,7 @@ def parse_decimal(value, fallback="0"):
         raise ValueError("Invalid numeric value")
 
 
-def create_contract_line_item(contract_id, payload, user_id=None):
-    """Build a ContractLineItem from a create/update payload.
 
-    Snapshots sku/product_name/rate at creation time so historical contracts
-    never depend on the current Product record: sku/product_name always
-    come from the resolved Product (never trusted from the client), while
-    rate is always the contractual rate the caller supplied (never silently
-    replaced by Product.rate/price).
-    """
-    product_id = payload.get("product_id") or None
-    sku = None
-    product_name = payload.get("product_name", "").strip()
-
-    if product_id:
-        from src.models.contract import Product
-
-        product_query = Product.query.filter_by(id=product_id)
-        if user_id is not None:
-            product_query = product_query.filter_by(user_id=user_id)
-        product = product_query.first()
-        if not product:
-            raise ValueError(f"Product {product_id} not found")
-        sku = product.sku
-        product_name = product_name or product.name
-
-    if not product_name:
-        raise ValueError("product_name is required")
-
-    quantity = parse_decimal(payload.get("quantity"))
-    rate = parse_decimal(payload.get("rate"))
-    discount = parse_decimal(payload.get("discount", "0"))
-    tax = parse_decimal(payload.get("tax", "0"))
-
-    line_item = ContractLineItem(
-        contract_id=contract_id,
-        product_id=product_id,
-        sku=sku,
-        product_name=product_name,
-        quantity=quantity,
-        rate=rate,
-        discount=discount,
-        tax=tax,
-        remarks=payload.get("remarks"),
-    )
-    # Single source of truth for the amount/line_total formula (see
-    # ContractLineItem.calculate_amount): amount = quantity * rate;
-    # discount/tax applied on top; both use Decimal, never floats.
-    line_item.calculate_amount()
-
-    return line_item
 
 
 

@@ -32,7 +32,7 @@ from src.services.auth import token_required, require_resource
 from src.services.logging_config import get_structured_logger
 from src.services import contract_lifecycle
 from src.services.contract_lifecycle import LifecycleError
-from src.services.contract_totals import recalculate_contract_total
+from src.services.contract_totals import recalculate_contract_total, create_contract_line_item
 from src.services.automation_engine import execute_triggers
 from src.services.task_service import generate_task
 from src.services.domain_event import dispatcher
@@ -156,44 +156,7 @@ def generate_sku(category, user_id=None):
 
 
 
-def create_line_item_from_payload(contract_id, payload, user_id=None):
-    quantity = parse_decimal(payload.get("quantity"))
-    rate = parse_decimal(payload.get("rate"))
-    discount = parse_decimal(payload.get("discount", "0"))
-    tax = parse_decimal(payload.get("tax", "0"))
 
-    # Get product details if product_id is provided. sku/product_name are
-    # always snapshotted from the resolved Product (never trusted from the
-    # client); rate stays whatever the caller negotiated for this contract.
-    product_id = payload.get("product_id") or None
-    sku = None
-    product_name = payload.get("product_name", "").strip()
-
-    if product_id:
-        product_query = Product.query.filter_by(id=product_id)
-        if user_id is not None:
-            product_query = product_query.filter_by(user_id=user_id)
-        product = product_query.first()
-        if not product:
-            raise ValueError(f"Product {product_id} not found")
-        sku = product.sku
-        product_name = product_name or product.name
-
-    line_item = ContractLineItem(
-        contract_id=contract_id,
-        product_id=product_id,
-        sku=sku,
-        product_name=product_name,
-        quantity=quantity,
-        rate=rate,
-        discount=discount,
-        tax=tax,
-        remarks=payload.get("remarks"),
-    )
-    if not line_item.product_name:
-        raise ValueError("product_name is required")
-    line_item.calculate_amount()
-    return line_item
 
 
 def contract_with_children(contract):
@@ -449,7 +412,7 @@ def contract_line_items(current_user, contract_id):
         return jsonify([item.to_dict() for item in items]), 200
 
     try:
-        line_item = create_line_item_from_payload(
+        line_item = create_contract_line_item(
             contract.id, request.get_json() or {}, user_id=current_user.id
         )
         db.session.add(line_item)
