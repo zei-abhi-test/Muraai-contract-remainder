@@ -4,7 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from src.models import contract, user  # noqa: F401
+from src.models import contract, user, workflow, calendar, automation  # noqa: F401
 from src.services.policy_engine import models  # noqa: F401
 from src.services.timeline import models  # noqa: F401
 from src.models.user import db

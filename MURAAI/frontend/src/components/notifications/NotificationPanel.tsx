@@ -43,13 +43,13 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const titleId = 'notification-panel-title'
 
-  const { data: activities, isLoading: listLoading } = useActivityList({ limit: 50 })
+  const { data: activities, isLoading: listLoading } = useActivityList({ per_page: 50 })
   const markRead = useMarkRead()
   const markAllRead = useMarkAllRead()
   const archive = useArchive()
   const archiveAll = useArchiveAll()
 
-  const notifications = useMemo(() => (activities || []).map(toNotification), [activities])
+  const notifications = useMemo(() => (activities?.items ?? []).map(toNotification), [activities])
 
   useFocusTrap(panelRef, isOpen)
   useEscapeKey(isOpen, onClose)

@@ -458,7 +458,7 @@ def test_existing_contract_list_contains_new_fields(client, auth_headers):
     )
     response = client.get("/api/contracts", headers=auth_headers)
     assert response.status_code == 200
-    for c in response.get_json():
+    for c in response.get_json()["items"]:
         assert "is_deleted" in c
         assert "activated_at" in c
         assert "terminated_at" in c

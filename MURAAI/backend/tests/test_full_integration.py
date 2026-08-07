@@ -319,7 +319,7 @@ def test_full_workflow(client):
     # Activity list
     resp = client.get("/api/activity", headers=h)
     assert resp.status_code == 200
-    activities = resp.get_json()
+    activities = resp.get_json()["items"]
     assert isinstance(activities, list)
     assert len(activities) >= 1, "Activity log is empty — contract lifecycle actions must create ActivityLog entries"
     print(f"PASS [25] Activity list ({len(activities)} entries)")

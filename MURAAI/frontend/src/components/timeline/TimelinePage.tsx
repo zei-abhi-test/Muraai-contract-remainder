@@ -48,8 +48,8 @@ const ENTITY_TYPES = [
 ]
 
 export function TimelinePage() {
-  const { data: activities, refetch, isRefetching } = useActivityList({ limit: 50 })
-  const events = useMemo(() => (activities || []).map(activityToEvent), [activities])
+  const { data: activities, refetch, isRefetching } = useActivityList({ per_page: 50 })
+  const events = useMemo(() => (activities?.items ?? []).map(activityToEvent), [activities])
   const [filterType, setFilterType] = useState('')
 
   const filteredEvents = useMemo(() => {

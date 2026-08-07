@@ -27,6 +27,84 @@ def test_contract_routes_require_authentication(client):
     assert response.status_code == 401
 
 
+def test_contract_list_pagination_shape_and_clamping(client, auth_headers):
+    for i in range(3):
+        resp = client.post(
+            "/api/contracts",
+            json=contract_payload(contract_name=f"Pagination {i}"),
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201
+
+    page_one = client.get(
+        "/api/contracts?page=1&per_page=2", headers=auth_headers
+    ).get_json()
+    assert page_one["items"]
+    assert page_one["page"] == 1
+    assert page_one["per_page"] == 2
+    assert page_one["total"] == 3
+    assert page_one["total_pages"] == 2
+
+    page_two = client.get(
+        "/api/contracts?page=2&per_page=2", headers=auth_headers
+    ).get_json()
+    assert len(page_two["items"]) == 1
+    assert page_two["total_pages"] == 2
+
+    clamped = client.get(
+        "/api/contracts?per_page=999", headers=auth_headers
+    ).get_json()
+    assert clamped["per_page"] == 100
+
+
+def test_contract_list_search_and_sort(client, auth_headers):
+    for name, company in [
+        ("Alpha Contract", "Zeta Ltd"),
+        ("Beta Contract", "Acme Corp"),
+        ("Gamma Agreement", "Beta Ltd"),
+    ]:
+        resp = client.post(
+            "/api/contracts",
+            json=contract_payload(contract_name=name, company_name=company),
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201
+
+    search = client.get("/api/contracts?search=contract", headers=auth_headers).get_json()
+    names = {item["contract_name"] for item in search["items"]}
+    assert names == {"Alpha Contract", "Beta Contract"}
+    assert search["total"] == 2
+
+    company_search = client.get(
+        "/api/contracts?search=acme", headers=auth_headers
+    ).get_json()
+    assert company_search["total"] == 1
+    assert company_search["items"][0]["company_name"] == "Acme Corp"
+
+    sorted_asc = client.get(
+        "/api/contracts?sort_by=contract_name&sort_dir=asc", headers=auth_headers
+    ).get_json()
+    assert [item["contract_name"] for item in sorted_asc["items"]] == [
+        "Alpha Contract",
+        "Beta Contract",
+        "Gamma Agreement",
+    ]
+
+    sorted_desc = client.get(
+        "/api/contracts?sort_by=contract_name", headers=auth_headers
+    ).get_json()
+    assert [item["contract_name"] for item in sorted_desc["items"]] == [
+        "Gamma Agreement",
+        "Beta Contract",
+        "Alpha Contract",
+    ]
+
+    invalid_sort = client.get(
+        "/api/contracts?sort_by=__dict__;DROP", headers=auth_headers
+    )
+    assert invalid_sort.status_code == 200
+
+
 def test_create_and_list_contract_for_authenticated_user(client, auth_headers):
     create_response = client.post(
         "/api/contracts", json=contract_payload(), headers=auth_headers
@@ -36,7 +114,7 @@ def test_create_and_list_contract_for_authenticated_user(client, auth_headers):
     assert create_response.status_code == 201
     assert create_response.get_json()["user_id"] == 1
     assert list_response.status_code == 200
-    assert len(list_response.get_json()) == 1
+    assert list_response.get_json()["total"] == 1
 
 
 def test_user_cannot_read_another_users_contract(client):
@@ -51,7 +129,7 @@ def test_user_cannot_read_another_users_contract(client):
     _, other_token = register_user(client, username="other", email="other@example.com")
     other_headers = {"Authorization": f"Bearer {other_token}"}
 
-    assert client.get("/api/contracts", headers=other_headers).get_json() == []
+    assert client.get("/api/contracts", headers=other_headers).get_json()["total"] == 0
     other_contract_response = client.get(
         f"/api/contracts/{contract_id}", headers=other_headers
     )
@@ -185,11 +263,11 @@ def test_contract_status_filters_and_sort_order(client):
             headers=headers,
         )
 
-    active = client.get("/api/contracts?status=active", headers=headers).get_json()
+    active = client.get("/api/contracts?status=active", headers=headers).get_json()["items"]
     ending_soon = client.get(
         "/api/contracts?status=ending-soon", headers=headers
-    ).get_json()
-    expired = client.get("/api/contracts?status=expired", headers=headers).get_json()
+    ).get_json()["items"]
+    expired = client.get("/api/contracts?status=expired", headers=headers).get_json()["items"]
     invalid = client.get("/api/contracts?status=unknown", headers=headers)
 
     assert [contract["contract_name"] for contract in active] == [
@@ -276,8 +354,9 @@ def test_contract_reminder_stats_and_history(client):
     assert contract_payload_json["total_reminders_sent"] == 2
     assert contract_payload_json["last_reminder_type"] == "mobile"
     assert contract_payload_json["last_reminder_message"] == "28 days before end date"
-    assert len(history_payload) == 3
-    assert history_payload[0]["message"] in {"28 days before end date", "Failed send"}
+    assert len(history_payload["items"]) == 3
+    assert history_payload["items"][0]["message"] in {"28 days before end date", "Failed send"}
+    assert history_payload["total"] == 3
 
 
 def test_notification_history_is_scoped_to_contract_owner(client):
@@ -344,7 +423,7 @@ def test_update_delete_and_upcoming_contract_filter(client, auth_headers):
     assert update_response.status_code == 200
     assert update_response.get_json()["contract_name"] == "Updated"
     assert upcoming_response.status_code == 200
-    assert len(upcoming_response.get_json()) == 1
+    assert upcoming_response.get_json()["total"] == 1
     assert delete_response.status_code == 204
     assert missing_response.status_code == 404
 
@@ -566,7 +645,7 @@ def test_contract_total_equals_sum_of_persisted_line_totals(client, auth_headers
 
 
 def test_invalid_product_id_rejects_contract_creation(client, auth_headers):
-    before_count = len(client.get("/api/contracts", headers=auth_headers).get_json())
+    before_count = client.get("/api/contracts", headers=auth_headers).get_json()["total"]
 
     create_response = client.post(
         "/api/contracts",
@@ -575,7 +654,7 @@ def test_invalid_product_id_rejects_contract_creation(client, auth_headers):
         ),
         headers=auth_headers,
     )
-    after_count = len(client.get("/api/contracts", headers=auth_headers).get_json())
+    after_count = client.get("/api/contracts", headers=auth_headers).get_json()["total"]
 
     assert create_response.status_code == 400
     assert "not found" in create_response.get_json()["error"].lower()
@@ -583,7 +662,7 @@ def test_invalid_product_id_rejects_contract_creation(client, auth_headers):
 
 
 def test_failed_line_item_rolls_back_entire_contract(client, auth_headers):
-    before_count = len(client.get("/api/contracts", headers=auth_headers).get_json())
+    before_count = client.get("/api/contracts", headers=auth_headers).get_json()["total"]
 
     create_response = client.post(
         "/api/contracts",
@@ -595,7 +674,7 @@ def test_failed_line_item_rolls_back_entire_contract(client, auth_headers):
         ),
         headers=auth_headers,
     )
-    after_count = len(client.get("/api/contracts", headers=auth_headers).get_json())
+    after_count = client.get("/api/contracts", headers=auth_headers).get_json()["total"]
 
     assert create_response.status_code == 400
     # Neither the contract nor its valid sibling line item should persist.

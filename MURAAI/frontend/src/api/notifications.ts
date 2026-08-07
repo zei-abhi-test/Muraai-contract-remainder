@@ -1,4 +1,5 @@
 import api from './axios'
+import type { Paginated } from './pagination'
 
 // Types
 export interface Notification {
@@ -58,9 +59,9 @@ export const notificationsApi = {
   },
 
   // Get notification history for contract
-  getNotificationHistory: async (contractId: number): Promise<Notification[]> => {
+  getNotificationHistory: async (contractId: number): Promise<Paginated<Notification>> => {
     const response = await api.get(`/notifications/history/${contractId}`)
-    return response.data as Notification[]
+    return response.data as Paginated<Notification>
   },
 
   // Update notification settings for contract

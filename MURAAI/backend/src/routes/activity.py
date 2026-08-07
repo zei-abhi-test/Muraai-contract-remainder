@@ -49,8 +49,16 @@ def log_activity(user_id, activity_type, title, description=None,
 @require_resource("activity")
 def list_activities(current_user):
     """List the current user's activity feed, newest first."""
-    limit = request.args.get("limit", 50, type=int)
     unread_first = request.args.get("unread_first", "true").lower() == "true"
+
+    page = request.args.get("page", 1, type=int) or 1
+    per_page = (
+        request.args.get("per_page", type=int)
+        or request.args.get("limit", type=int)
+        or 25
+    )
+    page = max(page, 1)
+    per_page = max(1, min(per_page, 100))
 
     query = ActivityLog.query.filter_by(user_id=current_user.id)
 
@@ -63,8 +71,19 @@ def list_activities(current_user):
     else:
         query = query.order_by(ActivityLog.created_at.desc())
 
-    activities = query.limit(limit).all()
-    return jsonify([a.to_dict() for a in activities]), 200
+    paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+    return (
+        jsonify(
+            {
+                "items": [a.to_dict() for a in paginated.items],
+                "page": paginated.page,
+                "per_page": paginated.per_page,
+                "total": paginated.total,
+                "total_pages": paginated.pages,
+            }
+        ),
+        200,
+    )
 
 
 @activity_bp.route("/activity/unread-count", methods=["GET"])

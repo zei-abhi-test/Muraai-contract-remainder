@@ -136,15 +136,15 @@ export function NotificationCenter() {
   }, [search])
 
   const params = useMemo(() => ({
-    limit: loadedCount,
-    offset: 0,
+    per_page: loadedCount,
     search: debouncedSearch || undefined,
     category: category !== 'all' ? category : undefined,
     archived: view === 'archived' || undefined,
     unread_first: view === 'inbox',
   }), [loadedCount, debouncedSearch, category, view])
 
-  const { data: activities = [], isLoading, isFetching } = useActivityList(params)
+  const { data, isLoading, isFetching } = useActivityList(params)
+  const activities = data?.items ?? []
   const { data: unreadCount = 0 } = useUnreadCount()
   const markRead = useMarkRead()
   const markAllRead = useMarkAllRead()
@@ -163,8 +163,8 @@ export function NotificationCenter() {
   }, [activities, filter])
 
   const groups = useMemo(() => groupActivities(filtered), [filtered])
-  const totalCount = activities.length
-  const hasMore = totalCount >= loadedCount
+  const totalCount = data?.total ?? 0
+  const hasMore = totalCount > loadedCount
 
   useEffect(() => {
     const sentinel = sentinelRef.current

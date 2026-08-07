@@ -23,7 +23,10 @@ src/
 │   └── contract.py           # Contract & Notification models
 ├── routes/
 │   ├── user.py               # User endpoints
-│   ├── contract.py           # Contract endpoints
+│   ├── contracts/            # Modularized contract submodules (crud, lifecycle, renewals, etc.)
+│   ├── customers.py          # Customer & contact endpoints
+│   ├── products.py           # Products & contract-types endpoints
+│   ├── customer_portal_admin.py # Portal administration endpoints
 │   └── notification.py       # Notification endpoints
 └── services/
     ├── notification_service.py # Email/SMS notifications

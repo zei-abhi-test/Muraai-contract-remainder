@@ -14,6 +14,7 @@ class CustomerPortalUser(db.Model):
     )
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, server_default="1")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
 
@@ -31,6 +32,7 @@ class CustomerPortalUser(db.Model):
             "id": self.id,
             "customer_id": self.customer_id,
             "email": self.email,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "last_login": self.last_login.isoformat() if self.last_login else None,
         }

@@ -13,8 +13,8 @@ export const queryClient = new QueryClient({
       // Retry delay with exponential backoff
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       
-      // Time to consider data stale
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      // Time to consider data stale (30 seconds default for responsive CRUD data)
+      staleTime: 30_000,
       
       // Time to keep unused data in cache
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)

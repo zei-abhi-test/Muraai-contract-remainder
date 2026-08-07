@@ -13,6 +13,12 @@ def auth(client, username="act_e2e_user", email="act_e2e@example.com"):
     return {"Authorization": f"Bearer {token}"}
 
 
+def get_activity_items(client, headers, **params):
+    resp = client.get("/api/activity", headers=headers, query_string=params)
+    assert resp.status_code == 200
+    return resp.get_json()["items"]
+
+
 def test_activity_log_created_by_actions(client):
     headers = auth(client)
 
@@ -34,9 +40,7 @@ def test_activity_log_created_by_actions(client):
     contract_id = contract["id"]
 
     # 2. Activity list should have at least 2 entries (customer not tracked, so only contract_created)
-    resp = client.get("/api/activity", headers=headers)
-    assert resp.status_code == 200
-    activities = resp.get_json()
+    activities = get_activity_items(client, headers)
     contract_created = [a for a in activities if a["activity_type"] == "contract_created"]
     assert len(contract_created) >= 1, "contract_created activity should exist"
     print(f"1. contract_created activity found: {contract_created[0]['title']}")
@@ -55,7 +59,7 @@ def test_activity_log_created_by_actions(client):
     approval_id = resp.get_json()["approval"]["id"]
 
     resp = client.get("/api/activity", headers=headers)
-    submitted = [a for a in resp.get_json() if a["activity_type"] == "approval_requested"]
+    submitted = [a for a in get_activity_items(client, headers) if a["activity_type"] == "approval_requested"]
     assert len(submitted) >= 1
     print(f"3. approval_requested activity found")
 
@@ -64,7 +68,7 @@ def test_activity_log_created_by_actions(client):
     assert resp.status_code == 200
 
     resp = client.get("/api/activity", headers=headers)
-    approved = [a for a in resp.get_json() if a["activity_type"] == "contract_approved"]
+    approved = [a for a in get_activity_items(client, headers) if a["activity_type"] == "contract_approved"]
     assert len(approved) >= 1
     print(f"4. contract_approved activity found")
 
@@ -73,7 +77,7 @@ def test_activity_log_created_by_actions(client):
     assert resp.status_code == 200
 
     resp = client.get("/api/activity", headers=headers)
-    activated = [a for a in resp.get_json() if a["activity_type"] == "contract_activated"]
+    activated = [a for a in get_activity_items(client, headers) if a["activity_type"] == "contract_activated"]
     assert len(activated) >= 1
     print(f"5. contract_activated activity found")
 
@@ -87,7 +91,7 @@ def test_activity_log_created_by_actions(client):
     invoice_id = resp.get_json()["id"]
 
     resp = client.get("/api/activity", headers=headers)
-    inv_created = [a for a in resp.get_json() if a["activity_type"] == "invoice_created"]
+    inv_created = [a for a in get_activity_items(client, headers) if a["activity_type"] == "invoice_created"]
     assert len(inv_created) >= 1
     print(f"6. invoice_created activity found")
 
@@ -99,7 +103,7 @@ def test_activity_log_created_by_actions(client):
     assert resp.status_code == 200
 
     resp = client.get("/api/activity", headers=headers)
-    inv_paid = [a for a in resp.get_json() if a["activity_type"] == "invoice_paid"]
+    inv_paid = [a for a in get_activity_items(client, headers) if a["activity_type"] == "invoice_paid"]
     assert len(inv_paid) >= 1
     print(f"7. invoice_paid activity found")
 
@@ -111,7 +115,7 @@ def test_activity_log_created_by_actions(client):
     assert resp.status_code == 201
 
     resp = client.get("/api/activity", headers=headers)
-    po_created = [a for a in resp.get_json() if a["activity_type"] == "po_created"]
+    po_created = [a for a in get_activity_items(client, headers) if a["activity_type"] == "po_created"]
     assert len(po_created) >= 1
     print(f"8. po_created activity found")
 
@@ -137,7 +141,7 @@ def test_activity_log_created_by_actions(client):
     assert resp.status_code == 200
 
     resp = client.get("/api/activity", headers=headers)
-    rejected = [a for a in resp.get_json() if a["activity_type"] == "contract_rejected"]
+    rejected = [a for a in get_activity_items(client, headers) if a["activity_type"] == "contract_rejected"]
     assert len(rejected) >= 1
     print(f"9. contract_rejected activity found")
 
@@ -158,7 +162,7 @@ def test_activity_log_created_by_actions(client):
 
     # 13. Mark single activity as read
     resp = client.get("/api/activity", headers=headers)
-    first = resp.get_json()[0]
+    first = resp.get_json()["items"][0]
     # Set it unread manually via db
     from src.models.contract import ActivityLog, db
     from src.main import app as _app
@@ -180,7 +184,7 @@ def test_activity_log_created_by_actions(client):
 
     # 14. Activity list respects limits and ordering
     resp = client.get("/api/activity?limit=2", headers=headers)
-    assert len(resp.get_json()) <= 2
+    assert len(resp.get_json()["items"]) <= 2
     print("13. Activity limit works")
 
     print("\n=== ALL ACTIVITY E2E TESTS PASSED ===")

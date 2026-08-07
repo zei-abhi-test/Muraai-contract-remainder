@@ -39,7 +39,7 @@ def test_purchase_order_full_workflow(client):
 
     # 4. Verify contracts are filtered by customer correctly
     resp = client.get("/api/contracts", headers=headers)
-    all_contracts = resp.get_json()
+    all_contracts = resp.get_json()["items"]
     customer_contracts = [c for c in all_contracts if c.get("customer_id") == empty_cust_id]
     assert len(customer_contracts) == 0, "Empty customer should have no contracts"
     customer_contracts = [c for c in all_contracts if c.get("customer_id") == customer_id]

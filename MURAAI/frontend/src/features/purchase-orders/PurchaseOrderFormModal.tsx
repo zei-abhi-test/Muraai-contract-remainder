@@ -48,7 +48,8 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
   const createPurchaseOrder = useCreatePurchaseOrder()
   const updatePurchaseOrder = useUpdatePurchaseOrder()
   const { data: customers = [], isLoading: customersLoading } = useCustomers()
-  const { data: contracts = [], isLoading: contractsLoading } = useContracts()
+  const { data: contractsData, isLoading: contractsLoading } = useContracts({ per_page: 100 })
+  const contracts = contractsData?.items ?? []
   const [apiError, setApiError] = useState('')
   const isEditing = !!purchaseOrder
 

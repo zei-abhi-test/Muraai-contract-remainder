@@ -1,4 +1,5 @@
 import api from './axios'
+import type { Paginated } from './pagination'
 
 export interface ActivityItem {
   id: number
@@ -15,8 +16,8 @@ export interface ActivityItem {
 }
 
 export interface ActivityListParams {
-  limit?: number
-  offset?: number
+  page?: number
+  per_page?: number
   unread_first?: boolean
   search?: string
   category?: string
@@ -56,14 +57,14 @@ export const ACTIVITY_TYPE_CATEGORY: Record<string, string> = {
 }
 
 export const activityApi = {
-  list: async (params: ActivityListParams = {}): Promise<ActivityItem[]> => {
-    const { limit = 50, offset = 0, unread_first = true, search, category, archived } = params
-    const queryParams: Record<string, any> = { limit, offset, unread_first }
+  list: async (params: ActivityListParams = {}): Promise<Paginated<ActivityItem>> => {
+    const { page = 1, per_page = 25, unread_first = true, search, category, archived } = params
+    const queryParams: Record<string, any> = { page, per_page, unread_first }
     if (search) queryParams.search = search
     if (category && category !== 'all') queryParams.category = category
     if (archived) queryParams.archived = true
     const response = await api.get('/activity', { params: queryParams })
-    return response.data as ActivityItem[]
+    return response.data as Paginated<ActivityItem>
   },
 
   unreadCount: async (): Promise<number> => {

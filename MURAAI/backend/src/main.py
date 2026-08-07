@@ -8,16 +8,33 @@ from sqlalchemy import text
 # Load environment variables from .env file
 load_dotenv()
 
+# Initialize Sentry error tracking if SENTRY_DSN is set
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+        environment=os.getenv("FLASK_ENV", "production"),
+    )
+
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_compress import Compress
 from src.models.user import db
 from src.routes.user import user_bp
-from src.routes.contract import contract_bp
+from src.routes.contracts import contract_blueprints
+from src.routes.customers import customers_bp
+from src.routes.products import products_bp
+from src.routes.customer_portal_admin import customer_portal_admin_bp
 from src.routes.notification import notification_bp
-from src.routes.management import management_bp
 from src.routes.approvals import approvals_bp
 from src.routes.purchase_orders import purchase_orders_bp
 from src.routes.invoices import invoices_bp
@@ -44,6 +61,18 @@ from src.services.timeline.service import TimelineService
 from src.services.policy_engine import PolicyRegistry, PolicyEngine
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
+
+# Compression configuration (gzip / brotli for json & static assets)
+app.config["COMPRESS_MIMETYPES"] = [
+    "text/html",
+    "text/css",
+    "text/xml",
+    "application/json",
+    "application/javascript",
+    "text/plain",
+]
+app.config["COMPRESS_MIN_SIZE"] = 100
+Compress(app)
 
 # Configure structured logging early
 setup_logging(app)
@@ -141,9 +170,12 @@ logger.info("Policy engine initialised", context={"registered_policies": 0})
 
 # Register blueprints
 app.register_blueprint(user_bp, url_prefix="/api")
-app.register_blueprint(contract_bp, url_prefix="/api")
+for bp in contract_blueprints:
+    app.register_blueprint(bp, url_prefix="/api")
+app.register_blueprint(customers_bp, url_prefix="/api")
+app.register_blueprint(products_bp, url_prefix="/api")
+app.register_blueprint(customer_portal_admin_bp, url_prefix="/api")
 app.register_blueprint(notification_bp, url_prefix="/api")
-app.register_blueprint(management_bp, url_prefix="/api")
 app.register_blueprint(approvals_bp, url_prefix="/api")
 app.register_blueprint(purchase_orders_bp, url_prefix="/api")
 app.register_blueprint(invoices_bp, url_prefix="/api")
