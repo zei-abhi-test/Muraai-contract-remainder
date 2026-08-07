@@ -8,6 +8,20 @@ from sqlalchemy import text
 # Load environment variables from .env file
 load_dotenv()
 
+# Initialize Sentry error tracking if SENTRY_DSN is set
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+        environment=os.getenv("FLASK_ENV", "production"),
+    )
+
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
