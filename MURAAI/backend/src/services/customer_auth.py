@@ -60,7 +60,7 @@ def customer_token_required(f: Callable) -> Callable:
             return jsonify({"error": "Invalid or expired token"}), 401
 
         portal_user = db.session.get(CustomerPortalUser, int(payload["sub"]))
-        if portal_user is None:
+        if portal_user is None or not portal_user.is_active:
             return jsonify({"error": "Customer account not found"}), 401
 
         g.current_customer = portal_user

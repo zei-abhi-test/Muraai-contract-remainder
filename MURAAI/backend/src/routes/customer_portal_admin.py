@@ -20,8 +20,8 @@ def customer_portal_status(current_user, customer_id):
 
     portal_user = CustomerPortalUser.query.filter_by(customer_id=customer.id).first()
     return jsonify({
-        "portal_enabled": portal_user is not None,
-        "portal_email": portal_user.email if portal_user else None,
+        "portal_enabled": portal_user is not None and portal_user.is_active,
+        "portal_email": portal_user.email if (portal_user and portal_user.is_active) else None,
         "portal_user_id": portal_user.id if portal_user else None,
     }), 200
 
@@ -35,10 +35,39 @@ def customer_portal_enable(current_user, customer_id):
         return jsonify({"error": "Customer not found"}), 404
 
     existing = CustomerPortalUser.query.filter_by(customer_id=customer.id).first()
-    if existing:
-        return jsonify({"error": "Portal access already enabled for this customer"}), 400
-
     data = request.get_json() or {}
+
+    if existing:
+        if existing.is_active:
+            return jsonify({"error": "Portal access already enabled for this customer"}), 400
+
+        # Reactivate account preserving history
+        email = (data.get("email") or existing.email or customer.email or "").strip().lower()
+        password = data.get("password", "").strip()
+
+        if email and email != existing.email:
+            conflict = CustomerPortalUser.query.filter(
+                CustomerPortalUser.email == email,
+                CustomerPortalUser.id != existing.id,
+            ).first()
+            if conflict:
+                return jsonify({"error": "A portal account with this email already exists"}), 400
+            existing.email = email
+
+        if password:
+            if len(password) < 6:
+                return jsonify({"error": "Password must be at least 6 characters"}), 400
+            existing.set_password(password)
+
+        existing.is_active = True
+        db.session.commit()
+
+        logger.info("Customer portal reactivated", context={
+            "customer_id": customer.id, "email": existing.email, "user_id": current_user.id,
+        })
+        return jsonify(existing.to_dict()), 200
+
+    # Create new portal user
     email = (data.get("email") or customer.email or "").strip().lower()
     password = data.get("password", "").strip()
 
@@ -53,6 +82,7 @@ def customer_portal_enable(current_user, customer_id):
     portal_user = CustomerPortalUser(
         customer_id=customer.id,
         email=email,
+        is_active=True,
     )
     portal_user.set_password(password)
     db.session.add(portal_user)
@@ -73,10 +103,10 @@ def customer_portal_disable(current_user, customer_id):
         return jsonify({"error": "Customer not found"}), 404
 
     portal_user = CustomerPortalUser.query.filter_by(customer_id=customer.id).first()
-    if not portal_user:
+    if not portal_user or not portal_user.is_active:
         return jsonify({"error": "Portal access not enabled for this customer"}), 400
 
-    db.session.delete(portal_user)
+    portal_user.is_active = False
     db.session.commit()
 
     logger.info("Customer portal disabled", context={
@@ -94,7 +124,7 @@ def customer_portal_reset_password(current_user, customer_id):
         return jsonify({"error": "Customer not found"}), 404
 
     portal_user = CustomerPortalUser.query.filter_by(customer_id=customer.id).first()
-    if not portal_user:
+    if not portal_user or not portal_user.is_active:
         return jsonify({"error": "Portal access not enabled for this customer"}), 400
 
     data = request.get_json() or {}

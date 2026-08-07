@@ -380,3 +380,47 @@ def test_portal_routes_reject_regular_user_token(client, auth_headers):
     # Use the admin auth_headers (regular user token) on portal routes
     resp = client.get("/api/portal/dashboard", headers=auth_headers)
     assert resp.status_code == 401
+
+
+def test_portal_disable_soft_deactivates_and_blocks_login_and_token(client, auth_headers):
+    cid, email, pw = _setup_customer_and_portal(client, auth_headers)
+    token, _ = _portal_login(client, email, pw)
+
+    # Disable portal access
+    resp = client.post(f"/api/customers/{cid}/portal/disable", headers=auth_headers)
+    assert resp.status_code == 200
+
+    # User record is retained in database with is_active=False
+    portal_user = CustomerPortalUser.query.filter_by(customer_id=cid).first()
+    assert portal_user is not None
+    assert portal_user.is_active is False
+
+    # Login fails
+    resp = client.post("/api/portal/auth/login", json={"email": email, "password": pw})
+    assert resp.status_code == 401
+
+    # Active token requests are rejected
+    resp = client.get("/api/portal/dashboard", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+
+
+def test_portal_enable_reactivates_disabled_account(client, auth_headers):
+    cid, email, pw = _setup_customer_and_portal(client, auth_headers)
+
+    # Disable
+    client.post(f"/api/customers/{cid}/portal/disable", headers=auth_headers)
+
+    # Reactivate via enable
+    resp = client.post(
+        f"/api/customers/{cid}/portal/enable",
+        headers=auth_headers,
+        json={"password": "reactivatedpass"},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["is_active"] is True
+
+    # Login with new password works
+    token, _ = _portal_login(client, email, "reactivatedpass")
+    assert token is not None
+

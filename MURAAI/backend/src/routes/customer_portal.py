@@ -31,7 +31,7 @@ def portal_login():
         return jsonify({"error": "Email and password are required"}), 400
 
     portal_user = CustomerPortalUser.query.filter_by(email=email).first()
-    if portal_user is None or not portal_user.check_password(password):
+    if portal_user is None or not portal_user.is_active or not portal_user.check_password(password):
         return jsonify({"error": "Invalid email or password"}), 401
 
     portal_user.last_login = datetime.utcnow()
