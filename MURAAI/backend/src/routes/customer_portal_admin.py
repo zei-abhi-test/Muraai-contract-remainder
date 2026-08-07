@@ -45,7 +45,12 @@ def customer_portal_enable(current_user, customer_id):
         email = (data.get("email") or existing.email or customer.email or "").strip().lower()
         password = data.get("password", "").strip()
 
-        if email and email != existing.email:
+        if not email:
+            return jsonify({"error": "Email is required"}), 400
+        if not password or len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+        if email != existing.email:
             conflict = CustomerPortalUser.query.filter(
                 CustomerPortalUser.email == email,
                 CustomerPortalUser.id != existing.id,
@@ -54,11 +59,7 @@ def customer_portal_enable(current_user, customer_id):
                 return jsonify({"error": "A portal account with this email already exists"}), 400
             existing.email = email
 
-        if password:
-            if len(password) < 6:
-                return jsonify({"error": "Password must be at least 6 characters"}), 400
-            existing.set_password(password)
-
+        existing.set_password(password)
         existing.is_active = True
         db.session.commit()
 
