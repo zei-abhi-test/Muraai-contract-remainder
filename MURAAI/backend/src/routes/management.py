@@ -722,60 +722,7 @@ def renewal_history(current_user, contract_id):
     return jsonify([contract_with_children(item) for item in contracts]), 200
 
 
-@management_bp.route("/reports/<report_name>", methods=["GET"])
-@token_required
-@require_resource("reports")
-def reports(current_user, report_name):
-    today = date.today()
-    query = Contract.query.filter_by(user_id=current_user.id)
-    if report_name == "active-contracts":
-        contracts = query.filter(Contract.end_date > today + timedelta(days=30)).all()
-        return jsonify([contract.to_dict() for contract in contracts]), 200
-    if report_name == "expiring-contracts":
-        contracts = query.filter(
-            Contract.end_date >= today,
-            Contract.end_date <= today + timedelta(days=30),
-        ).all()
-        return jsonify([contract.to_dict() for contract in contracts]), 200
-    if report_name == "expired-contracts":
-        contracts = query.filter(Contract.end_date < today).all()
-        return jsonify([contract.to_dict() for contract in contracts]), 200
-    if report_name == "customers":
-        customers = Customer.query.filter_by(user_id=current_user.id).all()
-        payload = []
-        for customer in customers:
-            item = customer.to_dict()
-            item["contracts"] = [
-                contract.to_dict()
-                for contract in Contract.query.filter_by(
-                    customer_id=customer.id,
-                    user_id=current_user.id,
-                ).all()
-            ]
-            payload.append(item)
-        return jsonify(payload), 200
-    if report_name == "contacts":
-        contacts = ContactPerson.query.filter_by(user_id=current_user.id).all()
-        payload = []
-        for contact in contacts:
-            item = contact.to_dict()
-            item["contracts"] = [
-                contract.to_dict()
-                for contract in Contract.query.filter_by(
-                    contact_person_id=contact.id,
-                    user_id=current_user.id,
-                ).all()
-            ]
-            payload.append(item)
-        return jsonify(payload), 200
-    if report_name == "line-items":
-        items = (
-            ContractLineItem.query.join(Contract)
-            .filter(Contract.user_id == current_user.id)
-            .all()
-        )
-        return jsonify([item.to_dict() for item in items]), 200
-    return jsonify({"error": "Unknown report"}), 404
+
 
 
 @management_bp.route("/products", methods=["GET", "POST"])

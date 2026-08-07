@@ -207,6 +207,20 @@ def invoices_report(current_user):
     return jsonify([inv.to_dict() for inv in invoices]), 200
 
 
+# ── 3. Line Items Report ────────────────────────────────────────────────
+
+@reports_bp.route("/reports/line-items", methods=["GET"])
+@token_required
+@require_resource("reports")
+def line_items_report(current_user):
+    items = (
+        ContractLineItem.query.join(Contract)
+        .filter(Contract.user_id == current_user.id)
+        .all()
+    )
+    return jsonify([item.to_dict() for item in items]), 200
+
+
 # ── 3. Purchase Orders Report ──────────────────────────────────────────
 
 @reports_bp.route("/reports/purchase-orders", methods=["GET"])
@@ -444,13 +458,14 @@ def activity_stats(current_user):
     by_type = [{"type": t, "count": c} for t, c in q.all()]
 
     # Trend by month
-    q2 = db.session.query(
-        db.func.to_char(ActivityLog.created_at, 'YYYY-MM').label("month"),
-        func.count(ActivityLog.id).label("count"),
-    ).filter(ActivityLog.user_id == uid)
+    q2 = ActivityLog.query.filter_by(user_id=uid)
     q2 = _apply_date_range(q2, ActivityLog.created_at, sd, ed)
-    q2 = q2.group_by("month").order_by("month")
-    trend = [{"month": r.month, "count": r.count} for r in q2.all()]
+    months: dict[str, int] = {}
+    for log in q2.all():
+        if log.created_at:
+            mk = _month_key(log.created_at)
+            months[mk] = months.get(mk, 0) + 1
+    trend = [{"month": k, "count": v} for k, v in sorted(months.items())]
 
     return jsonify({
         "by_type": by_type,
