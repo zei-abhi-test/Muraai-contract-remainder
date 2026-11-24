@@ -248,7 +248,7 @@ export function ContractsPage() {
           onSearchChange={v => { setSearchQuery(v); setPage(1) }}
           searchPlaceholder="Search contracts..."
           filters={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {STATUS_FILTERS.map(({ value, label }) => (
                 <button key={value} onClick={() => setStatusFilter(statusFilter === value ? null : value)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${

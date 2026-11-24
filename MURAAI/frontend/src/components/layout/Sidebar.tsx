@@ -49,7 +49,6 @@ const navGroups: NavGroup[] = [
     label: 'Mission Control',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'operational-inbox', label: 'Operational Inbox', icon: Inbox },
       { id: 'activity-timeline', label: 'Activity Timeline', icon: Activity },
     ],
   },
@@ -93,10 +92,10 @@ const navGroups: NavGroup[] = [
       { id: 'automation', label: 'Automation', icon: Zap, allowedRoles: ['ADMIN', 'SUPER_ADMIN'] },
       { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['ADMIN', 'SUPER_ADMIN'] },
       { id: 'users', label: 'Users', icon: UserCog, allowedRoles: ['ADMIN', 'SUPER_ADMIN'] },
-      { id: 'audit-logs', label: 'Audit Logs', icon: FileSearch, allowedRoles: ['ADMIN', 'SUPER_ADMIN'] },
     ],
   },
 ]
+
 
 function NavItemButton({ item, isActive, collapsed, onPageChange }: {
   item: NavItem

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
-import { useCustomers, useDeleteCustomer } from '@/hooks/useCustomers'
+import { useCustomers, useArchiveCustomer } from '@/hooks/useCustomers'
 import { CustomerFormModal } from '@/features/customers/CustomerFormModal'
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
 import { DataTable, type Column, Button, PageHeader } from '@/components/ui'
@@ -20,7 +20,7 @@ export function CustomersPage() {
   const openQuickAdd = useQuickAddStore((state) => state.open)
 
   const { data: customers, isLoading: customersLoading, error: customersError } = useCustomers()
-  const deleteCustomer = useDeleteCustomer()
+  const archiveCustomer = useArchiveCustomer()
 
   const sortedCustomers = (customers?.filter(customer =>
     customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,9 +52,9 @@ export function CustomersPage() {
 
   const handleConfirmDelete = () => {
     if (!deletingCustomer) return
-    deleteCustomer.mutate(deletingCustomer.id, {
-      onSuccess: () => {
-        toast.success(`Customer "${deletingCustomer.name}" deleted`)
+    archiveCustomer.mutate(deletingCustomer.id, {
+      onSuccess: () => { // success handled in hook
+        toast.success(`Customer "${deletingCustomer.name}" archived`)
         setDeletingCustomer(null)
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.lists() })
       },
@@ -139,8 +139,8 @@ export function CustomersPage() {
       </div>
 
       <CustomerFormModal isOpen={isModalOpen} onClose={handleModalClose} customer={editingCustomer} />
-      <ConfirmDeleteModal isOpen={!!deletingCustomer} title={`Delete customer "${deletingCustomer?.name}"?`}
-        isDeleting={deleteCustomer.isPending} onCancel={() => setDeletingCustomer(null)} onConfirm={handleConfirmDelete} />
+      <ConfirmDeleteModal isOpen={!!deletingCustomer} title={`Archive customer "${deletingCustomer?.name}"?`}
+        isDeleting={archiveCustomer.isPending} onCancel={() => setDeletingCustomer(null)} onConfirm={handleConfirmDelete} />
     </div>
   )
 }

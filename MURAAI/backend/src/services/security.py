@@ -58,6 +58,10 @@ def init_error_handlers(app: Flask):
     def not_found(error):
         return {"error": "Not found", "message": "The requested resource was not found"}, 404
 
+    @app.errorhandler(429)
+    def rate_limit_exceeded(error):
+        return {"error": "Too many requests", "message": "Rate limit exceeded. Please try again later."}, 429
+
     @app.errorhandler(500)
     def internal_error(error):
         return {"error": "Internal server error", "message": "An unexpected error occurred"}, 500

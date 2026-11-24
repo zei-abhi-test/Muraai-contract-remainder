@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useCreatePurchaseOrder, useUpdatePurchaseOrder } from '@/hooks/usePurchaseOrders'
@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { queryClient } from '@/lib/react-query'
 import { queryKeys } from '@/lib/react-query'
 import { getApiErrorMessage } from '@/lib/errors'
+import { useModal } from '@/hooks/useModal'
 import type { PurchaseOrder } from '@/api/purchaseOrders'
 
 interface POFormValues {
@@ -52,6 +53,8 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
   const contracts = contractsData?.items ?? []
   const [apiError, setApiError] = useState('')
   const isEditing = !!purchaseOrder
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModal(dialogRef, isOpen, onClose)
 
   const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<POFormValues>({
     defaultValues: emptyForm,
@@ -141,10 +144,14 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="po-modal-title"
           >
         <div className="p-6 border-b border-border flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">{isEditing ? 'Edit Purchase Order' : 'New Purchase Order'}</h2>
+            <h2 id="po-modal-title" className="text-xl font-semibold">{isEditing ? 'Edit Purchase Order' : 'New Purchase Order'}</h2>
             <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg">
               <span className="w-5 h-5 flex items-center justify-center">&times;</span>
             </button>
@@ -158,21 +165,22 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">PO Number</label>
-              <input {...register('po_number')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="Auto-generated" disabled={isEditing} />
+              <label htmlFor="po-number" className="block text-sm font-medium mb-2">PO Number</label>
+              <input id="po-number" {...register('po_number')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="Auto-generated" disabled={isEditing} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Date</label>
-              <input {...register('po_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="po-date" className="block text-sm font-medium mb-2">Date</label>
+              <input id="po-date" {...register('po_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Vendor *</label>
-            <input {...register('vendor', { required: true })} className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="Vendor name" />
+            <label htmlFor="po-vendor" className="block text-sm font-medium mb-2">Vendor *</label>
+            <input id="po-vendor" {...register('vendor', { required: true })} className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="Vendor name" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Customer</label>
+            <label htmlFor="po-customer" className="block text-sm font-medium mb-2">Customer</label>
             <select
+              id="po-customer"
               {...register('customer_id', { valueAsNumber: true })}
               onChange={(e) => {
                 setValue('customer_id', parseInt(e.target.value))
@@ -189,7 +197,7 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
           </div>
           {selectedCustomerId > 0 && (
             <div>
-              <label className="block text-sm font-medium mb-2">Contracts</label>
+              <label htmlFor="po-contracts" className="block text-sm font-medium mb-2">Contracts</label>
               {contractsLoading ? (
                 <div className="text-sm text-muted-foreground py-2">Loading contracts...</div>
               ) : filteredContracts.length === 0 ? (
@@ -213,16 +221,16 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
           )}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Issue Date</label>
-              <input {...register('issue_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="po-issue-date" className="block text-sm font-medium mb-2">Issue Date</label>
+              <input id="po-issue-date" {...register('issue_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Expected Delivery</label>
-              <input {...register('expected_delivery')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="po-delivery" className="block text-sm font-medium mb-2">Expected Delivery</label>
+              <input id="po-delivery" {...register('expected_delivery')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Currency</label>
-              <select {...register('currency')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
+              <label htmlFor="po-currency" className="block text-sm font-medium mb-2">Currency</label>
+              <select id="po-currency" {...register('currency')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
                 <option value="INR">INR</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -232,12 +240,12 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Amount *</label>
-              <input {...register('amount', { required: true })} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="po-amount" className="block text-sm font-medium mb-2">Amount *</label>
+              <input id="po-amount" {...register('amount', { required: true })} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <select {...register('status')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
+              <label htmlFor="po-status" className="block text-sm font-medium mb-2">Status</label>
+              <select id="po-status" {...register('status')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
                 <option value="Draft">Draft</option>
                 <option value="Submitted">Submitted</option>
                 <option value="Approved">Approved</option>
@@ -247,8 +255,8 @@ export function PurchaseOrderFormModal({ isOpen, onClose, purchaseOrder }: Purch
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Remarks</label>
-            <textarea {...register('remarks')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" rows={3} placeholder="Optional remarks..." />
+            <label htmlFor="po-remarks" className="block text-sm font-medium mb-2">Remarks</label>
+            <textarea id="po-remarks" {...register('remarks')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" rows={3} placeholder="Optional remarks..." />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 border border-input rounded-lg hover:bg-accent" disabled={isSaving}>

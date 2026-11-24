@@ -53,19 +53,19 @@ export function useUpdateCustomer() {
   })
 }
 
-export function useDeleteCustomer() {
+export function useArchiveCustomer() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: customersApi.deleteCustomer,
+    mutationFn: customersApi.archiveCustomer,
     onSuccess: () => {
-      toast.success('Customer deleted successfully')
+      toast.success('Customer archived successfully')
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.lists() })
       queryClient.invalidateQueries({ queryKey: queryKeys.contracts.lists() })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
     },
     onError: (error: any) => {
-      toast.error(getApiErrorMessage(error, 'Failed to delete customer'))
+      toast.error(getApiErrorMessage(error, 'Failed to archive customer'))
     },
   })
 }

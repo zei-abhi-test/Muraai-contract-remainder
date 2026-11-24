@@ -31,6 +31,8 @@ from src.routes.activity import log_activity
 from src.services import contract_lifecycle
 from src.services.auth import require_resource, token_required
 from src.services.automation_engine import execute_triggers
+from src.services.cache import invalidate_user_dashboard_cache
+
 from src.services.contract_totals import (
     create_contract_line_item,
     recalculate_contract_total,
@@ -415,13 +417,13 @@ def create_contract(current_user):
             context={
                 "contract_id": contract.id,
                 "contract_name": contract.contract_name,
-                "company_name": contract.company_name,
                 "user_id": contract.user_id,
-                "end_date": str(contract.end_date),
-                "renewal_date": str(contract.renewal_date),
             },
         )
+        invalidate_user_dashboard_cache(current_user.id)
         return jsonify(contract_to_dict(contract)), 201
+
+
 
     except ValidationError as e:
         logger.error("Contract creation validation error", context={"errors": str(e)})

@@ -11,13 +11,13 @@ class Task(db.Model):
     __tablename__ = "task"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    due_date = db.Column(db.Date)
+    due_date = db.Column(db.Date, index=True)
     priority = db.Column(db.String(20), default="MEDIUM")
-    status = db.Column(db.String(20), default="TODO")
-    assigned_to = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    status = db.Column(db.String(20), default="TODO", index=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
     assigned_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     related_module = db.Column(db.String(50), nullable=True)
     related_record_id = db.Column(db.Integer, nullable=True)
@@ -53,7 +53,7 @@ class TaskComment(db.Model):
     __tablename__ = "task_comment"
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -75,7 +75,7 @@ class TaskAttachment(db.Model):
     __tablename__ = "task_attachment"
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
@@ -98,7 +98,7 @@ class TaskHistory(db.Model):
     __tablename__ = "task_history"
 
     id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     field = db.Column(db.String(50), nullable=False)
     old_value = db.Column(db.Text, nullable=True)
@@ -123,11 +123,11 @@ class TaskHistory(db.Model):
 class CalendarEvent(db.Model):
     __tablename__ = "calendar_event"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     event_type = db.Column(db.String(50), nullable=False)
-    start = db.Column(db.DateTime, nullable=False)
+    start = db.Column(db.DateTime, nullable=False, index=True)
     end = db.Column(db.DateTime)
     all_day = db.Column(db.Boolean, default=False)
     color = db.Column(db.String(20))

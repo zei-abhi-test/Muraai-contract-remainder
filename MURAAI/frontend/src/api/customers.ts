@@ -49,8 +49,8 @@ export const customersApi = {
     return response.data as Customer
   },
 
-  // Delete customer (backend enforces dependency safety, returns 409 if referenced)
-  deleteCustomer: async (id: number): Promise<void> => {
+  // Archive customer (backend enforces dependency safety, returns 409 if referenced)
+  archiveCustomer: async (id: number): Promise<void> => {
     await api.delete(`/customers/${id}`)
   },
 }

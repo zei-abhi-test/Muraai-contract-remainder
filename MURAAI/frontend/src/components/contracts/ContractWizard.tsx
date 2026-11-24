@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Check, X, Plus, Trash2 } from 'lucide-react'
 import { useForm, useFieldArray } from 'react-hook-form'
@@ -8,6 +8,7 @@ import { useContactsByCustomer } from '@/hooks/useContacts'
 import { useProducts } from '@/hooks/useProducts'
 import { useContractTypes } from '@/hooks/useContractTypes'
 import { useContract } from '@/hooks/useContracts'
+import { useModal } from '@/hooks/useModal'
 import { contractSchema, type ContractFormData } from '@/lib/validations'
 
 interface ContractWizardProps {
@@ -60,6 +61,8 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
   const { data: products = [], isLoading: productsLoading } = useProducts()
   const { data: contractTypes = [], isLoading: contractTypesLoading } = useContractTypes()
   const { data: existingContract } = useContract(editContractId || 0)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModal(dialogRef, isOpen, onClose)
   
   const {
     register,
@@ -178,8 +181,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
             <h3 className="text-xl font-semibold">Parties Information</h3>
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Customer *</label>
+                <label htmlFor="wiz-customer" className="block text-sm font-medium mb-2">Customer *</label>
                 <select
+                  id="wiz-customer"
                   {...register('customer_id', { valueAsNumber: true })}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                 >
@@ -191,8 +195,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 {errors.customer_id && <p className="text-sm text-destructive mt-1">{errors.customer_id.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Contact Person</label>
+                <label htmlFor="wiz-contact" className="block text-sm font-medium mb-2">Contact Person</label>
                 <select
+                  id="wiz-contact"
                   {...register('contact_person_id', { valueAsNumber: true })}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                   disabled={!selectedCustomerId}
@@ -204,8 +209,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Company *</label>
+                <label htmlFor="wiz-company" className="block text-sm font-medium mb-2">Company *</label>
                 <input
+                  id="wiz-company"
                   {...register('company_name')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                   placeholder="Enter company name"
@@ -213,8 +219,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 {errors.company_name && <p className="text-sm text-destructive mt-1">{errors.company_name.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Contract Type *</label>
+                <label htmlFor="wiz-contract-type" className="block text-sm font-medium mb-2">Contract Type *</label>
                 <select
+                  id="wiz-contract-type"
                   {...register('contract_type_id', { valueAsNumber: true })}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                 >
@@ -235,8 +242,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
             <h3 className="text-xl font-semibold">Contract Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Contract Name *</label>
+                <label htmlFor="wiz-contract-name" className="block text-sm font-medium mb-2">Contract Name *</label>
                 <input
+                  id="wiz-contract-name"
                   {...register('contract_name')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                   placeholder="Enter contract name"
@@ -244,16 +252,18 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 {errors.contract_name && <p className="text-sm text-destructive mt-1">{errors.contract_name.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Contract Number</label>
+                <label htmlFor="wiz-contract-number" className="block text-sm font-medium mb-2">Contract Number</label>
                 <input
+                  id="wiz-contract-number"
                   {...register('contract_number')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                   placeholder="Auto-generated if empty"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Start Date *</label>
+                <label htmlFor="wiz-start-date" className="block text-sm font-medium mb-2">Start Date *</label>
                 <input
+                  id="wiz-start-date"
                   {...register('start_date')}
                   type="date"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
@@ -261,8 +271,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 {errors.start_date && <p className="text-sm text-destructive mt-1">{errors.start_date.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">End Date *</label>
+                <label htmlFor="wiz-end-date" className="block text-sm font-medium mb-2">End Date *</label>
                 <input
+                  id="wiz-end-date"
                   {...register('end_date')}
                   type="date"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
@@ -270,24 +281,27 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 {errors.end_date && <p className="text-sm text-destructive mt-1">{errors.end_date.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Contract Date</label>
+                <label htmlFor="wiz-contract-date" className="block text-sm font-medium mb-2">Contract Date</label>
                 <input
+                  id="wiz-contract-date"
                   {...register('contract_date')}
                   type="date"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Renewal Date</label>
+                <label htmlFor="wiz-renewal-date" className="block text-sm font-medium mb-2">Renewal Date</label>
                 <input
+                  id="wiz-renewal-date"
                   {...register('renewal_date')}
                   type="date"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Status</label>
+                <label htmlFor="wiz-status" className="block text-sm font-medium mb-2">Status</label>
                 <select
+                  id="wiz-status"
                   {...register('status')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                 >
@@ -299,8 +313,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Currency</label>
+                <label htmlFor="wiz-currency" className="block text-sm font-medium mb-2">Currency</label>
                 <select
+                  id="wiz-currency"
                   {...register('currency')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                 >
@@ -311,16 +326,18 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2">Payment Terms</label>
+                <label htmlFor="wiz-payment-terms" className="block text-sm font-medium mb-2">Payment Terms</label>
                 <input
+                  id="wiz-payment-terms"
                   {...register('payment_terms')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                   placeholder="e.g., Net 30, Net 60"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2">Remarks</label>
+                <label htmlFor="wiz-remarks" className="block text-sm font-medium mb-2">Remarks</label>
                 <textarea
+                  id="wiz-remarks"
                   {...register('remarks')}
                   className="w-full px-4 py-2 border border-input rounded-lg bg-background"
                   rows={3}
@@ -346,8 +363,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
               {watch('notification_enabled') && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Notification Email *</label>
+                    <label htmlFor="wiz-notification-email" className="block text-sm font-medium mb-2">Notification Email *</label>
                     <input
+                      id="wiz-notification-email"
                       {...register('notification_email')}
                       type="email"
                       className="w-full px-4 py-2 border border-input rounded-lg bg-background"
@@ -382,8 +400,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
               {fields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-1 md:grid-cols-8 gap-4 p-4 border border-border rounded-lg">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2">Product *</label>
+                    <label htmlFor={`wiz-li-product-${index}`} className="block text-sm font-medium mb-2">Product *</label>
                     <select
+                      id={`wiz-li-product-${index}`}
                       {...register(`line_items.${index}.product_id` as const, { valueAsNumber: true })}
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
                       onChange={(e) => handleProductChange(index, Number(e.target.value))}
@@ -395,8 +414,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Quantity *</label>
+                    <label htmlFor={`wiz-li-qty-${index}`} className="block text-sm font-medium mb-2">Quantity *</label>
                     <input
+                      id={`wiz-li-qty-${index}`}
                       {...register(`line_items.${index}.quantity` as const, { valueAsNumber: true })}
                       type="number"
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
@@ -404,8 +424,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Rate *</label>
+                    <label htmlFor={`wiz-li-rate-${index}`} className="block text-sm font-medium mb-2">Rate *</label>
                     <input
+                      id={`wiz-li-rate-${index}`}
                       {...register(`line_items.${index}.rate` as const, { valueAsNumber: true })}
                       type="number"
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
@@ -414,8 +435,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Discount %</label>
+                    <label htmlFor={`wiz-li-discount-${index}`} className="block text-sm font-medium mb-2">Discount %</label>
                     <input
+                      id={`wiz-li-discount-${index}`}
                       {...register(`line_items.${index}.discount` as const, { valueAsNumber: true })}
                       type="number"
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
@@ -426,8 +448,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Tax %</label>
+                    <label htmlFor={`wiz-li-tax-${index}`} className="block text-sm font-medium mb-2">Tax %</label>
                     <input
+                      id={`wiz-li-tax-${index}`}
                       {...register(`line_items.${index}.tax` as const, { valueAsNumber: true })}
                       type="number"
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
@@ -438,8 +461,9 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Remarks</label>
+                    <label htmlFor={`wiz-li-remarks-${index}`} className="block text-sm font-medium mb-2">Remarks</label>
                     <input
+                      id={`wiz-li-remarks-${index}`}
                       {...register(`line_items.${index}.remarks` as const)}
                       className="w-full px-3 py-2 border border-input rounded-lg bg-background text-sm"
                     />
@@ -648,34 +672,40 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    >
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="contract-wizard-title"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         className="bg-card border border-border rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
       >
         {/* Sticky Header */}
-        <div className="p-6 border-b border-border flex-shrink-0">
+        <div className="p-4 sm:p-6 border-b border-border flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">{editContractId ? 'Edit Contract' : 'Create Contract'}</h2>
+            <h2 id="contract-wizard-title" className="text-xl font-semibold">{editContractId ? 'Edit Contract' : 'Create Contract'}</h2>
             <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg">
               <X className="w-5 h-5" />
             </button>
           </div>
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center flex-1">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+              <div key={step.id} className="flex items-center flex-1 min-w-0">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
                   currentStep >= step.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                   {currentStep > step.id ? <Check className="w-4 h-4" /> : step.id}
                 </div>
-                <div className="ml-3 flex-1">
-                  <p className="text-sm font-medium">{step.title}</p>
-                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                <div className="ml-2 flex-1 min-w-0 hidden sm:block">
+                  <p className="text-sm font-medium truncate">{step.title}</p>
+                  <p className="text-xs text-muted-foreground truncate hidden md:block">{step.description}</p>
                 </div>
-                {index < steps.length - 1 && <div className="w-8 h-px bg-border ml-3" />}
+                {index < steps.length - 1 && <div className="w-4 sm:w-8 h-px bg-border ml-2 shrink-0" />}
               </div>
             ))}
           </div>
@@ -693,7 +723,7 @@ export function ContractWizard({ isOpen, onClose, onSubmit, editContractId }: Co
         </div>
 
         {/* Sticky Footer */}
-        <div className="p-6 border-t border-border flex items-center justify-between flex-shrink-0">
+        <div className="p-4 sm:p-6 border-t border-border flex items-center justify-between flex-shrink-0">
           <button
             onClick={handleBack}
             disabled={currentStep === 1}

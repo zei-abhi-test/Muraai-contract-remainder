@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Download, FileText, Receipt } from 'lucide-react'
+import { Download, FileText, Receipt, AlertCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { customerPortalApi } from '@/api/customerPortal'
 
 export function PortalInvoices() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['portal', 'invoices'],
     queryFn: customerPortalApi.getInvoices,
   })
@@ -34,6 +34,17 @@ export function PortalInvoices() {
 
       {isLoading ? (
         <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />)}</div>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center py-12 text-destructive border border-destructive/20 bg-destructive/10 rounded-xl">
+          <AlertCircle className="w-10 h-10 mb-3 opacity-80" aria-hidden="true" />
+          <p className="font-medium text-sm">Failed to load invoices.</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Try Again
+          </button>
+        </div>
       ) : !data || data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Receipt className="w-10 h-10 mb-3 opacity-50" aria-hidden="true" />

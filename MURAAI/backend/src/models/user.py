@@ -25,6 +25,9 @@ class User(db.Model):
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
+    two_factor_secret = db.Column(db.String(32), nullable=True)
+    two_factor_enabled = db.Column(db.Boolean, default=False, nullable=False)
+
     def __repr__(self):
         return f"<User {self.username}>"
 
@@ -46,10 +49,12 @@ class User(db.Model):
             "avatar_url": self.avatar_url,
             "role": self.role,
             "status": self.status,
+            "two_factor_enabled": self.two_factor_enabled,
             "last_login": self.last_login.isoformat() if self.last_login else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
 
 
 class Organization(db.Model):

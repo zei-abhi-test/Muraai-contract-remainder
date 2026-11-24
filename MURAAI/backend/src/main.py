@@ -8,6 +8,45 @@ from sqlalchemy import text
 # Load environment variables from .env file
 load_dotenv()
 
+
+def validate_env() -> None:
+    """Fail fast if required environment variables are missing.
+
+    Categories:
+      1. Always required: SECRET_KEY, EMAIL_USER, EMAIL_PASSWORD
+      2. Required in production (FLASK_ENV == 'production'): DATABASE_URL
+         (prevents silent SQLite fallback in prod)
+      3. Required when scheduler is enabled (RUN_SCHEDULER == 'true'): CRON_SECRET
+
+    Raises RuntimeError listing ALL missing variables so a misconfigured
+    deploy sees the full picture on first boot instead of one error per redeploy.
+    """
+    missing: list[str] = []
+
+    # --- Always required ---
+    for var in ("SECRET_KEY", "EMAIL_USER", "EMAIL_PASSWORD"):
+        if not os.getenv(var):
+            missing.append(var)
+
+    # --- Required only in production ---
+    if os.getenv("FLASK_ENV") == "production":
+        if not os.getenv("DATABASE_URL"):
+            missing.append("DATABASE_URL (required in production; SQLite fallback not allowed)")
+
+    # --- Required only when scheduler is enabled ---
+    if os.getenv("RUN_SCHEDULER", "false").lower() == "true":
+        if not os.getenv("CRON_SECRET"):
+            missing.append("CRON_SECRET (required when RUN_SCHEDULER=true)")
+
+    if missing:
+        raise RuntimeError(
+            "Missing required environment variables:\n"
+            + "\n".join(f"  - {v}" for v in missing)
+        )
+
+
+validate_env()
+
 # Initialize Sentry error tracking if SENTRY_DSN is set
 sentry_dsn = os.getenv("SENTRY_DSN")
 if sentry_dsn:
@@ -80,17 +119,12 @@ logger = get_structured_logger(__name__)
 
 # Security Configuration
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-if not app.config["SECRET_KEY"]:
-    raise ValueError("SECRET_KEY environment variable is required. Set it in .env file")
 
 # Email configuration (from environment variables)
 app.config["SMTP_SERVER"] = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 app.config["SMTP_PORT"] = int(os.getenv("SMTP_PORT", 587))
 app.config["EMAIL_USER"] = os.getenv("EMAIL_USER")
 app.config["EMAIL_PASSWORD"] = os.getenv("EMAIL_PASSWORD")
-
-if not app.config["EMAIL_USER"] or not app.config["EMAIL_PASSWORD"]:
-    raise ValueError("EMAIL_USER and EMAIL_PASSWORD environment variables are required")
 
 # Firebase Cloud Messaging configuration (from environment variables)
 app.config["FCM_SERVER_KEY"] = os.getenv("FCM_SERVER_KEY")
@@ -108,12 +142,38 @@ CORS(
     supports_credentials=True,
 )
 
-# Initialize security
+# Initialize security & rate limiting
 from src.services.security import init_security_headers, init_error_handlers
+from src.services.limiter import limiter
+
+limiter.init_app(app)
+if app.config.get("TESTING") or os.getenv("FLASK_ENV") == "testing":
+    limiter.enabled = False
 
 init_security_headers(app)
+
 init_error_handlers(app)
 init_request_logging(app)
+
+# Initialize Swagger API Documentation (/apidocs)
+# Optional Swagger initialization
+if os.getenv('DISABLE_SWAGGER', 'false').lower() != 'true':
+    try:
+        from src.services.swagger import init_swagger
+        init_swagger(app)
+    except Exception as e:
+        # Log error but continue without Swagger; non‑critical for core functionality
+        logger = get_structured_logger(__name__)
+        logger.error('Swagger initialization failed; continuing without Swagger', context={'error': str(e)})
+        # Do not raise to allow app startup
+
+# Initialize Cache (Redis / SimpleCache)
+from src.services.cache import init_cache
+init_cache(app)
+
+
+
+
 
 # Database configuration
 database_url = os.getenv("DATABASE_URL")
@@ -134,6 +194,17 @@ if not app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
 
 # Initialize database
 db.init_app(app)
+# Ensure new columns from the User model exist in the DB for legacy databases
+with app.app_context():
+    from sqlalchemy import inspect
+    inspector = inspect(db.engine)
+    columns = [col['name'] for col in inspector.get_columns('user')]
+    if 'two_factor_secret' not in columns:
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN two_factor_secret VARCHAR(32)'))
+        db.session.commit()
+    if 'two_factor_enabled' not in columns:
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN two_factor_enabled BOOLEAN DEFAULT FALSE'))
+        db.session.commit()
 if os.getenv("AUTO_CREATE_TABLES", "false").lower() == "true" or app.config[
     "SQLALCHEMY_DATABASE_URI"
 ].startswith("sqlite"):
@@ -245,6 +316,6 @@ def serve(path):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
+    port = int(os.getenv("PORT", 8000))
     debug = os.getenv("FLASK_ENV") == "development"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    app.run(host="127.0.0.1", port=port, debug=debug)

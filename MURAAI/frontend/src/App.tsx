@@ -11,6 +11,7 @@ import { useCustomerAuthStore } from './store/customerAuthStore'
 import { useUIStore } from './store/uiStore'
 import { useCurrentUser } from './hooks/useAuth'
 import { getAccessToken } from './api/axios'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const ContractsPage = lazy(() => import('./pages/ContractsPage').then(m => ({ default: m.ContractsPage })))
@@ -43,6 +44,47 @@ const TimelinePage = lazy(() => import('./components/timeline/TimelinePage').the
 const TaskPage = lazy(() => import('./pages/TaskPage').then(m => ({ default: m.TaskPage })))
 const WorkflowBuilderPage = lazy(() => import('./pages/WorkflowBuilderPage').then(m => ({ default: m.WorkflowBuilderPage })))
 const AutomationRulePage = lazy(() => import('./pages/AutomationRulePage').then(m => ({ default: m.AutomationRulePage })))
+
+/** Error fallback used on auth pages (no app chrome) */
+function AuthErrorFallback({ error, reset }: { error: Error | null; reset: () => void }) {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4" role="alert">
+      <div className="bg-card border border-border rounded-xl p-8 max-w-sm w-full text-center shadow-lg">
+        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+          <span className="text-destructive text-xl" aria-hidden="true">⚠</span>
+        </div>
+        <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          This page encountered an unexpected error.
+        </p>
+        {error && (
+          <details className="text-left mb-4">
+            <summary className="text-xs font-medium text-muted-foreground cursor-pointer">
+              Error details
+            </summary>
+            <pre className="mt-2 text-xs bg-muted p-3 rounded overflow-auto max-h-28">
+              {error.toString()}
+            </pre>
+          </details>
+        )}
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={reset}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
+          >
+            Try again
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 border border-input rounded-lg text-sm hover:bg-accent"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const hasToken = !!getAccessToken()
@@ -148,12 +190,9 @@ function AppContent() {
         return <UsersPage />
       case 'calendar':
         return <CalendarPage />
-      case 'audit-logs':
-        return <AuditLogsPage />
-      case 'operational-inbox':
-        return <OperationalInboxPage />
       case 'activity-timeline':
         return <TimelinePage />
+
       case 'tasks':
         return <TaskPage />
       case 'workflows':
@@ -189,9 +228,21 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Suspense fallback={null}><PublicRoute><LoginPage /></PublicRoute></Suspense>} />
-          <Route path="/register" element={<Suspense fallback={null}><PublicRoute><RegisterPage /></PublicRoute></Suspense>} />
-          <Route path="/portal/login" element={<Suspense fallback={null}><PublicRoute><PortalLoginPage /></PublicRoute></Suspense>} />
+          <Route path="/login" element={
+            <ErrorBoundary fallback={(error, reset) => <AuthErrorFallback error={error} reset={reset} />}>
+              <Suspense fallback={null}><PublicRoute><LoginPage /></PublicRoute></Suspense>
+            </ErrorBoundary>
+          } />
+          <Route path="/register" element={
+            <ErrorBoundary fallback={(error, reset) => <AuthErrorFallback error={error} reset={reset} />}>
+              <Suspense fallback={null}><PublicRoute><RegisterPage /></PublicRoute></Suspense>
+            </ErrorBoundary>
+          } />
+          <Route path="/portal/login" element={
+            <ErrorBoundary fallback={(error, reset) => <AuthErrorFallback error={error} reset={reset} />}>
+              <Suspense fallback={null}><PublicRoute><PortalLoginPage /></PublicRoute></Suspense>
+            </ErrorBoundary>
+          } />
           <Route
             path="/portal"
             element={

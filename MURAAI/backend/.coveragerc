@@ -1,0 +1,18 @@
+[run]
+branch = True
+
+# Exclude generated code: Alembic migrations and scaffolding entry points
+# are auto-generated and not meaningful targets for test coverage.
+omit =
+    migrations/*
+    tests/*
+    src/__init__.py
+    *.egg-info/*
+
+[report]
+show_missing = True
+
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    @overload

@@ -14,6 +14,7 @@ from src.services.customer_auth import (
     customer_token_required, decode_token, generate_token,
 )
 from src.services.logging_config import get_structured_logger
+from src.services.limiter import limiter
 
 customer_portal_bp = Blueprint("customer_portal", __name__)
 logger = get_structured_logger(__name__)
@@ -22,6 +23,7 @@ logger = get_structured_logger(__name__)
 # ── Auth ────────────────────────────────────────────────────────────────
 
 @customer_portal_bp.route("/portal/auth/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def portal_login():
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
@@ -53,6 +55,7 @@ def portal_login():
 
 
 @customer_portal_bp.route("/portal/auth/me", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_me():
     pu = g.current_customer
@@ -73,6 +76,7 @@ def _customer_contracts(customer_id):
 
 
 @customer_portal_bp.route("/portal/dashboard", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_dashboard():
     pu = g.current_customer
@@ -102,6 +106,7 @@ def portal_dashboard():
 # ── Contracts ──────────────────────────────────────────────────────────
 
 @customer_portal_bp.route("/portal/contracts", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_contracts():
     pu = g.current_customer
@@ -122,6 +127,7 @@ def portal_contracts():
 
 
 @customer_portal_bp.route("/portal/contracts/<int:contract_id>", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_contract_detail(contract_id):
     pu = g.current_customer
@@ -162,6 +168,7 @@ def portal_contract_detail(contract_id):
 # ── Invoices ───────────────────────────────────────────────────────────
 
 @customer_portal_bp.route("/portal/invoices", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_invoices():
     pu = g.current_customer
@@ -178,6 +185,7 @@ def portal_invoices():
 
 
 @customer_portal_bp.route("/portal/invoices/<int:invoice_id>/download", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_invoice_download(invoice_id):
     pu = g.current_customer
@@ -222,6 +230,7 @@ def portal_invoice_download(invoice_id):
 # ── Purchase Orders ───────────────────────────────────────────────────
 
 @customer_portal_bp.route("/portal/purchase-orders", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_purchase_orders():
     pu = g.current_customer
@@ -239,6 +248,7 @@ def portal_purchase_orders():
 # ── Documents (Signed Document Upload) ─────────────────────────────────
 
 @customer_portal_bp.route("/portal/contracts/<int:contract_id>/documents", methods=["GET"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_list_documents(contract_id):
     pu = g.current_customer
@@ -251,6 +261,7 @@ def portal_list_documents(contract_id):
 
 
 @customer_portal_bp.route("/portal/contracts/<int:contract_id>/documents", methods=["POST"])
+@limiter.limit("60 per minute")
 @customer_token_required
 def portal_upload_document(contract_id):
     pu = g.current_customer
