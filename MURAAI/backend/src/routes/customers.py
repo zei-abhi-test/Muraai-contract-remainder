@@ -28,22 +28,18 @@ def get_owned_contact(contact_id, user_id):
 
 
 def describe_customer_dependencies(customer_id, user_id):
-    """Return a human-readable list of entity types still referencing a
-    customer, or None if the customer is safe to delete."""
+    """Return a list of entity types still referencing a customer.
+    Returns empty list if safe to delete."""
     dependencies = []
     if ContactPerson.query.filter_by(customer_id=customer_id, user_id=user_id).count():
         dependencies.append("contacts")
     if Contract.query.filter_by(customer_id=customer_id, user_id=user_id).count():
         dependencies.append("contracts")
     if PurchaseOrder.query.filter_by(customer_id=customer_id, user_id=user_id).count():
-        dependencies.append("purchase orders")
+        dependencies.append("purchase_orders")
     if Invoice.query.filter_by(customer_id=customer_id, user_id=user_id).count():
         dependencies.append("invoices")
-    if not dependencies:
-        return None
-    if len(dependencies) == 1:
-        return dependencies[0]
-    return ", ".join(dependencies[:-1]) + " and " + dependencies[-1]
+    return dependencies
 
 
 def describe_contact_dependencies(contact_id, user_id):
@@ -56,7 +52,7 @@ def describe_contact_dependencies(contact_id, user_id):
 @token_required
 @require_resource("customers")
 def list_customers(current_user):
-    customers = Customer.query.filter_by(user_id=current_user.id).order_by(Customer.name.asc()).all()
+    customers = Customer.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(Customer.name.asc()).all()
     return jsonify([customer.to_dict() for customer in customers]), 200
 
 
@@ -119,17 +115,45 @@ def customer_detail(current_user, customer_id):
         db.session.commit()
         return jsonify(customer.to_dict()), 200
 
-    dependency = describe_customer_dependencies(customer.id, current_user.id)
-    if dependency:
+    dependencies = describe_customer_dependencies(customer.id, current_user.id)
+    if dependencies:
         return (
             jsonify(
-                {"error": f"Customer cannot be deleted because it is referenced by existing {dependency}."}
+                {
+                    "success": False,
+                    "error": {
+                        "code": "CUSTOMER_HAS_DEPENDENCIES",
+                        "message": "Customer cannot be archived because it is referenced by existing entities.",
+                        "dependencies": dependencies,
+                    },
+                }
             ),
             409,
         )
-    db.session.delete(customer)
+    # Perform soft archive
+    from datetime import datetime
+    customer.is_deleted = True
+    customer.deleted_at = datetime.utcnow()
+    customer.deleted_by_id = current_user.id
     db.session.commit()
-    return jsonify({"message": "Customer deleted"}), 200
+    # Log activity
+    log_activity(
+        user_id=current_user.id,
+        activity_type="customer_archived",
+        title=f"Customer archived: {customer.name}",
+        description=f"Customer {customer.name} was archived.",
+        entity_type="customer",
+        entity_id=customer.id,
+    )
+    # Dispatch domain event
+    dispatcher.dispatch(
+        event_type="CustomerArchived",
+        aggregate_type="customer",
+        aggregate_id=customer.id,
+        user_id=current_user.id,
+        payload={"name": customer.name},
+    )
+    return jsonify({"message": "Customer archived"}), 200
 
 
 @customers_bp.route("/customers/<int:customer_id>/contacts", methods=["GET", "POST"])

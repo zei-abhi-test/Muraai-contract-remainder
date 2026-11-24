@@ -3,6 +3,12 @@ import * as Sentry from '@sentry/react'
 
 interface Props {
   children: ReactNode
+  /**
+   * Optional custom fallback renderer. Receives the caught error and a
+   * `reset` callback that clears the error state. When omitted the default
+   * full-screen modal overlay is shown.
+   */
+  fallback?: (error: Error | null, reset: () => void) => ReactNode
 }
 
 interface State {
@@ -25,8 +31,18 @@ export class ErrorBoundary extends Component<Props, State> {
     Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } })
   }
 
+  private reset = () => {
+    this.setState({ hasError: false, error: null })
+  }
+
   public render() {
     if (this.state.hasError) {
+      // Custom fallback supplied by the caller — use it.
+      if (this.props.fallback) {
+        return this.props.fallback(this.state.error, this.reset)
+      }
+
+      // Default: full-screen modal overlay (used by the root boundary).
       return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" role="alert">
           <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4">

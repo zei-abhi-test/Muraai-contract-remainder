@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useCreateInvoice, useUpdateInvoice } from '@/hooks/useInvoices'
@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { queryClient } from '@/lib/react-query'
 import { queryKeys } from '@/lib/react-query'
 import { getApiErrorMessage } from '@/lib/errors'
+import { useModal } from '@/hooks/useModal'
 import type { Invoice } from '@/api/invoices'
 
 interface InvoiceFormValues {
@@ -58,6 +59,8 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
   const { data: purchaseOrders = [] } = usePurchaseOrders()
   const [apiError, setApiError] = useState('')
   const isEditing = !!invoice
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModal(dialogRef, isOpen, onClose)
 
   const { register, handleSubmit, reset, watch, setValue } = useForm<InvoiceFormValues>({
     defaultValues: emptyForm,
@@ -189,10 +192,14 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="bg-card border border-border rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invoice-modal-title"
           >
         <div className="p-6 border-b border-border flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">{isEditing ? 'Edit Invoice' : 'Create Invoice'}</h2>
+            <h2 id="invoice-modal-title" className="text-xl font-semibold">{isEditing ? 'Edit Invoice' : 'Create Invoice'}</h2>
             <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg">
               <span className="w-5 h-5 flex items-center justify-center">&times;</span>
             </button>
@@ -206,8 +213,9 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-2">Customer</label>
+            <label htmlFor="invoice-customer" className="block text-sm font-medium mb-2">Customer</label>
             <select
+              id="invoice-customer"
               {...register('customer_id', { valueAsNumber: true })}
               onChange={(e) => { setValue('customer_id', parseInt(e.target.value)); setValue('contract_id', 0) }}
               disabled={isEditing}
@@ -221,8 +229,9 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Contract</label>
+            <label htmlFor="invoice-contract" className="block text-sm font-medium mb-2">Contract</label>
             <select
+              id="invoice-contract"
               {...register('contract_id', { valueAsNumber: true })}
               disabled={isEditing || contractsLoading}
               className="w-full px-3 py-2 bg-background border border-input rounded-lg disabled:opacity-60"
@@ -237,8 +246,9 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Purchase Order (Optional)</label>
+            <label htmlFor="invoice-po" className="block text-sm font-medium mb-2">Purchase Order (Optional)</label>
             <select
+              id="invoice-po"
               {...register('purchase_order_id', { valueAsNumber: true })}
               disabled={isEditing}
               className="w-full px-3 py-2 bg-background border border-input rounded-lg"
@@ -261,12 +271,12 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Invoice Number</label>
-              <input {...register('invoice_number')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="Auto-generated" disabled={isEditing} />
+              <label htmlFor="invoice-number" className="block text-sm font-medium mb-2">Invoice Number</label>
+              <input id="invoice-number" {...register('invoice_number')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="Auto-generated" disabled={isEditing} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Status</label>
-              <select {...register('status')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
+              <label htmlFor="invoice-status" className="block text-sm font-medium mb-2">Status</label>
+              <select id="invoice-status" {...register('status')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
                 <option value="DRAFT">Draft</option>
                 <option value="ISSUED">Issued</option>
               </select>
@@ -275,18 +285,18 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Invoice Date</label>
-              <input {...register('invoice_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="invoice-date" className="block text-sm font-medium mb-2">Invoice Date</label>
+              <input id="invoice-date" {...register('invoice_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Due Date</label>
-              <input {...register('due_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="invoice-due-date" className="block text-sm font-medium mb-2">Due Date</label>
+              <input id="invoice-due-date" {...register('due_date')} type="date" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Currency</label>
-            <select {...register('currency')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
+            <label htmlFor="invoice-currency" className="block text-sm font-medium mb-2">Currency</label>
+            <select id="invoice-currency" {...register('currency')} className="w-full px-3 py-2 bg-background border border-input rounded-lg">
               <option value="INR">INR</option>
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
@@ -296,16 +306,16 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Amount (Subtotal)</label>
-              <input {...register('amount')} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
+              <label htmlFor="invoice-amount" className="block text-sm font-medium mb-2">Amount (Subtotal)</label>
+              <input id="invoice-amount" {...register('amount')} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Tax</label>
-              <input {...register('tax')} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="0" />
+              <label htmlFor="invoice-tax" className="block text-sm font-medium mb-2">Tax</label>
+              <input id="invoice-tax" {...register('tax')} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="0" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Discount</label>
-              <input {...register('discount')} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="0" />
+              <label htmlFor="invoice-discount" className="block text-sm font-medium mb-2">Discount</label>
+              <input id="invoice-discount" {...register('discount')} type="number" step="0.01" className="w-full px-3 py-2 bg-background border border-input rounded-lg" placeholder="0" />
             </div>
           </div>
 
@@ -315,8 +325,8 @@ export function InvoiceFormModal({ isOpen, onClose, invoice }: InvoiceFormModalP
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Remarks</label>
-            <textarea {...register('remarks')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" rows={2} placeholder="Optional remarks..." />
+            <label htmlFor="invoice-remarks" className="block text-sm font-medium mb-2">Remarks</label>
+            <textarea id="invoice-remarks" {...register('remarks')} className="w-full px-3 py-2 bg-background border border-input rounded-lg" rows={2} placeholder="Optional remarks..." />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

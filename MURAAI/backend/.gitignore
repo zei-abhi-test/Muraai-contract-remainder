@@ -1,0 +1,4 @@
+# Playwright E2E throwaway database + scratch logs
+e2e_app.db
+venv/
+__pycache__/

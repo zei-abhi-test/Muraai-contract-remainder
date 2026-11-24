@@ -188,10 +188,15 @@ def get_dashboard_data(current_user):
         return jsonify({"error": str(e)}), 500
 
 
+from src.services.cache import cache, make_dashboard_cache_key
+
+
 @contract_dashboard_bp.route("/dashboard/data", methods=["GET"])
 @token_required
 @require_resource("contracts")
+@cache.cached(timeout=60, make_cache_key=make_dashboard_cache_key)
 def get_dashboard_full_data(current_user):
+
     try:
         uid = current_user.id
         today = date.today()

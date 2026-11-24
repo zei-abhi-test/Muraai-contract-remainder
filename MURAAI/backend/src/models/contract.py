@@ -46,6 +46,10 @@ class Customer(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    # Soft delete fields
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     def to_dict(self):
         return {
@@ -58,19 +62,22 @@ class Customer(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "user_id": self.user_id,
+            "is_deleted": self.is_deleted,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
+            "deleted_by_id": self.deleted_by_id,
         }
 
 
 class ContactPerson(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=False, index=True)
     contact_name = db.Column(db.String(200), nullable=False)
     contact_number = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(120), nullable=True)
     designation = db.Column(db.String(120), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
     def to_dict(self):
         return {
@@ -98,13 +105,13 @@ class Contract(db.Model):
     notification_mobile = db.Column(db.Boolean, default=False)
     notes = db.Column(db.Text, nullable=True)
     contract_number = db.Column(db.String(80), unique=True, nullable=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True, index=True)
     contact_person_id = db.Column(
         db.Integer,
         db.ForeignKey("contact_person.id"),
         nullable=True,
     )
-    contract_type_id = db.Column(db.Integer, db.ForeignKey("contract_type.id"), nullable=True)
+    contract_type_id = db.Column(db.Integer, db.ForeignKey("contract_type.id"), nullable=True, index=True)
     contract_date = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(50), default="Active", index=True)
     currency = db.Column(db.String(10), default="INR")
@@ -112,11 +119,11 @@ class Contract(db.Model):
     remarks = db.Column(db.Text, nullable=True)
     total_contract_value = db.Column(db.Numeric(14, 2), default=0)
     contract_version = db.Column(db.Integer, default=1)
-    parent_contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True)
+    parent_contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True, index=True)
     previous_contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     last_modified_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,
@@ -238,7 +245,7 @@ class Contract(db.Model):
 class ContractLineItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False, index=True)
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True, index=True)
     sku = db.Column(db.String(100), nullable=True)
     product_name = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Numeric(14, 2), nullable=False, default=0)
@@ -527,8 +534,8 @@ class ContractApproval(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=False, index=True)
-    approver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    requested_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    approver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+    requested_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
     status = db.Column(db.String(50), nullable=False, default="Pending", index=True)
     comments = db.Column(db.Text, nullable=True)
     approval_level = db.Column(db.Integer, nullable=True, default=1)
@@ -568,16 +575,16 @@ class ContractApproval(db.Model):
 class PurchaseOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     po_number = db.Column(db.String(80), nullable=False, unique=True)
-    po_date = db.Column(db.Date, nullable=False, default=date.today)
+    po_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
     vendor = db.Column(db.String(200), nullable=False)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True, index=True)
     amount = db.Column(db.Numeric(14, 2), nullable=False, default=0)
     status = db.Column(db.String(50), nullable=False, default="Draft", index=True)
     issue_date = db.Column(db.Date, nullable=True)
     expected_delivery = db.Column(db.Date, nullable=True)
     currency = db.Column(db.String(10), nullable=True, default="INR")
     remarks = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
@@ -620,7 +627,7 @@ class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_number = db.Column(db.String(80), nullable=False, unique=True)
     contract_id = db.Column(db.Integer, db.ForeignKey("contract.id"), nullable=True, index=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True, index=True)
     purchase_order_id = db.Column(db.Integer, db.ForeignKey("purchase_order.id"), nullable=True)
     amount = db.Column(db.Numeric(14, 2), nullable=False, default=0)
     tax = db.Column(db.Numeric(14, 2), nullable=True, default=Decimal("0"))
@@ -628,12 +635,12 @@ class Invoice(db.Model):
     total = db.Column(db.Numeric(14, 2), nullable=True, default=Decimal("0"))
     currency = db.Column(db.String(10), nullable=True, default="INR")
     invoice_date = db.Column(db.Date, nullable=False, default=date.today)
-    due_date = db.Column(db.Date, nullable=True)
+    due_date = db.Column(db.Date, nullable=True, index=True)
     paid_date = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(50), nullable=False, default="DRAFT", index=True)
     remarks = db.Column(db.Text, nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
 
@@ -675,7 +682,7 @@ class InvoiceLineItem(db.Model):
     __tablename__ = "invoice_line_item"
 
     id = db.Column(db.Integer, primary_key=True)
-    invoice_id = db.Column(db.Integer, db.ForeignKey("invoice.id"), nullable=False)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoice.id"), nullable=False, index=True)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True)
     product_name = db.Column(db.String(200), nullable=False)
     sku = db.Column(db.String(80), nullable=True)

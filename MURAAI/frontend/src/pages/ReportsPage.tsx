@@ -359,6 +359,21 @@ function SectionHeader({ title, exportType, filters, actions }: { title: string;
   )
 }
 
+function InlineError({ message = 'Failed to load report data', onRetry }: { message?: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-6 bg-destructive/10 border border-destructive/20 rounded-xl text-center gap-3 my-4">
+      <AlertTriangle className="w-8 h-8 text-destructive" />
+      <p className="text-sm font-medium text-destructive">{message}</p>
+      <button
+        onClick={() => onRetry()}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+      >
+        <RefreshCw className="w-3.5 h-3.5" /> Retry
+      </button>
+    </div>
+  )
+}
+
 function formatStorage(bytes: number) {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -374,20 +389,20 @@ export function ReportsPage() {
   const [filters, setFilters] = useState<ReportFilters>({})
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart')
 
-  const { data: charts, isLoading: chartsLoading } = useCharts(filters)
-  const { data: summary, isLoading: summaryLoading } = useSummary()
-  const { data: statistics, isLoading: statsLoading } = useStatistics()
-  const { data: contracts = [], isLoading: contractsLoading } = useReport<Contract[]>('contracts', filters)
-  const { data: invoices = [], isLoading: invoicesLoading } = useReport<Invoice[]>('invoices', filters)
-  const { data: purchaseOrders = [], isLoading: poLoading } = useReport<PurchaseOrder[]>('purchase-orders', filters)
-  const { data: renewals = [], isLoading: renewalsLoading } = useReport<Contract[]>('renewals', filters)
-  const { data: customers = [], isLoading: customersLoading } = useReport<any[]>('customers', filters)
-  const { data: products = [], isLoading: productsLoading } = useReport<any[]>('products', filters)
-  const { data: revenue = { total_revenue: 0, total_line_items: 0 }, isLoading: revenueLoading } = useReport<RevenueData>('revenue', filters)
-  const { data: approvals = [], isLoading: approvalsLoading } = useReport<any[]>('approvals', filters)
-  const { data: docStats, isLoading: docLoading } = useDocumentStats()
-  const { data: activityStats, isLoading: activityLoading } = useActivityStats(filters)
-  const { data: renewalStats, isLoading: renewalStatsLoading } = useRenewalStats()
+  const { data: charts, isLoading: chartsLoading, isError: chartsError, refetch: refetchCharts } = useCharts(filters)
+  const { data: summary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = useSummary()
+  const { data: statistics, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useStatistics()
+  const { data: contracts = [], isLoading: contractsLoading, isError: contractsError, refetch: refetchContracts } = useReport<Contract[]>('contracts', filters)
+  const { data: invoices = [], isLoading: invoicesLoading, isError: invoicesError, refetch: refetchInvoices } = useReport<Invoice[]>('invoices', filters)
+  const { data: purchaseOrders = [], isLoading: poLoading, isError: poError, refetch: refetchPO } = useReport<PurchaseOrder[]>('purchase-orders', filters)
+  const { data: renewals = [], isLoading: renewalsLoading, isError: renewalsError, refetch: refetchRenewals } = useReport<Contract[]>('renewals', filters)
+  const { data: customers = [], isLoading: customersLoading, isError: customersError, refetch: refetchCustomers } = useReport<any[]>('customers', filters)
+  const { data: products = [], isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useReport<any[]>('products', filters)
+  const { data: revenue = { total_revenue: 0, total_line_items: 0 }, isLoading: revenueLoading, isError: revenueError, refetch: refetchRevenue } = useReport<RevenueData>('revenue', filters)
+  const { data: approvals = [], isLoading: approvalsLoading, isError: approvalsError, refetch: refetchApprovals } = useReport<any[]>('approvals', filters)
+  const { data: docStats, isLoading: docLoading, isError: docError, refetch: refetchDocStats } = useDocumentStats()
+  const { data: activityStats, isLoading: activityLoading, isError: activityError, refetch: refetchActivityStats } = useActivityStats(filters)
+  const { data: renewalStats, isLoading: renewalStatsLoading, isError: renewalStatsError, refetch: refetchRenewalStats } = useRenewalStats()
 
   const clearFilters = () => setFilters({})
   const overviewLoading = summaryLoading || statsLoading || chartsLoading
@@ -395,6 +410,9 @@ export function ReportsPage() {
   const renderSection = () => {
     switch (activeSection) {
       case 'overview':
+        if (summaryError || statsError || chartsError) {
+          return <InlineError message="Failed to load executive dashboard data" onRetry={() => { refetchSummary(); refetchStats(); refetchCharts(); }} />
+        }
         return (
           <div className="space-y-6">
             <SummaryCards data={summary} />
@@ -412,6 +430,9 @@ export function ReportsPage() {
         )
 
       case 'contracts': {
+        if (contractsError) {
+          return <InlineError message="Failed to load contracts report" onRetry={refetchContracts} />
+        }
         const bs = statistics?.contracts_by_status || {}
         return (
           <div className="space-y-4">
@@ -461,6 +482,9 @@ export function ReportsPage() {
       }
 
       case 'invoices': {
+        if (invoicesError) {
+          return <InlineError message="Failed to load invoices report" onRetry={refetchInvoices} />
+        }
         const issued = (invoices || []).filter(i => i.status === 'ISSUED' || i.status === 'SENT').length
         const paid = (invoices || []).filter(i => i.status === 'PAID').length
         const cancelled = (invoices || []).filter(i => i.status === 'CANCELLED').length
@@ -503,6 +527,9 @@ export function ReportsPage() {
       }
 
       case 'purchase-orders': {
+        if (poError) {
+          return <InlineError message="Failed to load purchase orders report" onRetry={refetchPO} />
+        }
         const pending = (purchaseOrders || []).filter(p => p.status === 'Pending' || p.status === 'Draft').length
         const completed = (purchaseOrders || []).filter(p => p.status === 'Completed').length
         const approved = (purchaseOrders || []).filter(p => p.status === 'Approved').length
@@ -540,6 +567,9 @@ export function ReportsPage() {
       }
 
       case 'renewals':
+        if (renewalsError || renewalStatsError) {
+          return <InlineError message="Failed to load renewals report" onRetry={() => { refetchRenewals(); refetchRenewalStats(); }} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title={`Renewals Report`} exportType="renewals" filters={filters} />
@@ -571,6 +601,9 @@ export function ReportsPage() {
         )
 
       case 'customers':
+        if (customersError) {
+          return <InlineError message="Failed to load customers report" onRetry={refetchCustomers} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title={`Customers Report (${customers?.length || 0})`} exportType="customers" filters={filters} />
@@ -595,6 +628,9 @@ export function ReportsPage() {
         )
 
       case 'products':
+        if (productsError) {
+          return <InlineError message="Failed to load products report" onRetry={refetchProducts} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title={`Products Report (${products?.length || 0})`} exportType="products" filters={filters} />
@@ -622,6 +658,9 @@ export function ReportsPage() {
         )
 
       case 'revenue':
+        if (revenueError) {
+          return <InlineError message="Failed to load revenue report" onRetry={refetchRevenue} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title="Revenue Report" exportType="revenue" filters={filters} />
@@ -643,6 +682,9 @@ export function ReportsPage() {
         )
 
       case 'approvals':
+        if (approvalsError) {
+          return <InlineError message="Failed to load approvals report" onRetry={refetchApprovals} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title={`Approvals Report (${approvals?.length || 0})`} exportType="approvals" filters={filters} />
@@ -701,6 +743,9 @@ export function ReportsPage() {
         )
 
       case 'documents':
+        if (docError) {
+          return <InlineError message="Failed to load documents report" onRetry={refetchDocStats} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title="Documents Report" exportType="documents" filters={filters} />
@@ -737,6 +782,9 @@ export function ReportsPage() {
         )
 
       case 'activity':
+        if (activityError) {
+          return <InlineError message="Failed to load activity report" onRetry={refetchActivityStats} />
+        }
         return (
           <div className="space-y-4">
             <SectionHeader title="Activity Report" exportType="activity" filters={filters} />

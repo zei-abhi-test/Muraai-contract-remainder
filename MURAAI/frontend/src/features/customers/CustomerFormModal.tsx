@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { customerSchema, type CustomerFormData } from '@/lib/validations'
 import { useCreateCustomer, useUpdateCustomer } from '@/hooks/useCustomers'
+import { useModal } from '@/hooks/useModal'
 import { toast } from 'sonner'
 import { queryClient } from '@/lib/react-query'
 import { queryKeys } from '@/lib/react-query'
@@ -24,6 +25,8 @@ export function CustomerFormModal({ isOpen, onClose, customer }: CustomerFormMod
   const createCustomer = useCreateCustomer()
   const updateCustomer = useUpdateCustomer()
   const isEditing = !!customer
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModal(dialogRef, isOpen, onClose)
 
   const {
     register,
@@ -89,32 +92,36 @@ export function CustomerFormModal({ isOpen, onClose, customer }: CustomerFormMod
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             className="bg-card border border-border rounded-xl w-full max-w-md p-6"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customer-modal-title"
           >
-        <h2 className="text-xl font-semibold mb-4">{isEditing ? 'Edit Customer' : 'New Customer'}</h2>
+        <h2 id="customer-modal-title" className="text-xl font-semibold mb-4">{isEditing ? 'Edit Customer' : 'New Customer'}</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Name *</label>
-            <input {...register('name')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
+            <label htmlFor="customer-name" className="block text-sm font-medium mb-2">Name *</label>
+            <input id="customer-name" {...register('name')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
             {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Customer Code</label>
-            <input {...register('customer_code')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
+            <label htmlFor="customer-code" className="block text-sm font-medium mb-2">Customer Code</label>
+            <input id="customer-code" {...register('customer_code')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
             {errors.customer_code && <p className="text-sm text-destructive mt-1">{errors.customer_code.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <input {...register('email')} type="email" className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
+            <label htmlFor="customer-email" className="block text-sm font-medium mb-2">Email</label>
+            <input id="customer-email" {...register('email')} type="email" className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
             {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Phone</label>
-            <input {...register('phone')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
+            <label htmlFor="customer-phone" className="block text-sm font-medium mb-2">Phone</label>
+            <input id="customer-phone" {...register('phone')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" />
             {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Address</label>
-            <textarea {...register('address')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" rows={3} />
+            <label htmlFor="customer-address" className="block text-sm font-medium mb-2">Address</label>
+            <textarea id="customer-address" {...register('address')} className="w-full px-4 py-2 border border-input rounded-lg bg-background" rows={3} />
             {errors.address && <p className="text-sm text-destructive mt-1">{errors.address.message}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-4">

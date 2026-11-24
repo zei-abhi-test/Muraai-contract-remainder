@@ -44,7 +44,7 @@ class WorkflowStage(db.Model):
     __tablename__ = "workflow_stage"
 
     id = db.Column(db.Integer, primary_key=True)
-    workflow_id = db.Column(db.Integer, db.ForeignKey("workflow.id"), nullable=False)
+    workflow_id = db.Column(db.Integer, db.ForeignKey("workflow.id"), nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
     stage_order = db.Column(db.Integer, nullable=False)
     role_required = db.Column(db.String(30), nullable=False)
@@ -64,7 +64,7 @@ class WorkflowRule(db.Model):
     __tablename__ = "workflow_rule"
 
     id = db.Column(db.Integer, primary_key=True)
-    workflow_id = db.Column(db.Integer, db.ForeignKey("workflow.id"), nullable=False)
+    workflow_id = db.Column(db.Integer, db.ForeignKey("workflow.id"), nullable=False, index=True)
     field = db.Column(db.String(50), nullable=False)
     operator = db.Column(db.String(20), nullable=False)
     value = db.Column(db.String(200), nullable=False)

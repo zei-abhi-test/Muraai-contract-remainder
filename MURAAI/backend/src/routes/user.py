@@ -1,14 +1,20 @@
-from datetime import datetime
+import base64
+import io
+from datetime import datetime, timedelta
 import secrets
 import string
+import jwt
+import pyotp
+import qrcode
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
 from src.models.user import User, LoginHistory, db
 from src.services.auth import generate_token, token_required, role_required
 from src.services.validators import UserCreate, UserLogin, UserUpdate, AdminUserCreate, AdminUserUpdate, UserInvite
 from src.services.logging_config import get_structured_logger
+from src.services.limiter import limiter
 
 user_bp = Blueprint("user", __name__)
 logger = get_structured_logger(__name__)
@@ -36,8 +42,9 @@ def _record_login_history(user_id, ip_address, user_agent):
 
 
 @user_bp.route("/auth/register", methods=["POST"])
+@limiter.limit("5 per minute")
 def register():
-    """Register a user and return a JWT."""
+    """Register a new user and return JWT authentication token."""
     try:
         data = request.get_json() or {}
         validated_data = UserCreate(**data)
@@ -75,8 +82,9 @@ def register():
 
 
 @user_bp.route("/auth/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
-    """Authenticate a user and return a JWT."""
+    """Authenticate a user and return a JWT or 2FA challenge token."""
     try:
         data = request.get_json() or {}
         validated_data = UserLogin(**data)
@@ -84,7 +92,6 @@ def login():
 
         if not user or not user.check_password(validated_data.password):
             logger.warning("Failed login attempt", context={"email": validated_data.email})
-            # Record failed login
             if user:
                 _record_login_history(user.id, request.remote_addr, request.headers.get("User-Agent"))
             return jsonify({"error": "Invalid email or password"}), 401
@@ -93,6 +100,22 @@ def login():
             logger.warning("Disabled user login attempt", context={"user_id": user.id, "email": user.email})
             _record_login_history(user.id, request.remote_addr, request.headers.get("User-Agent"))
             return jsonify({"error": "Account has been disabled"}), 403
+
+        # Check if 2FA is enabled for user
+        if user.two_factor_enabled:
+            pre_auth_token = jwt.encode(
+                {
+                    "user_id": user.id,
+                    "pre_auth": True,
+                    "exp": datetime.utcnow() + timedelta(minutes=5),
+                },
+                current_app.config["SECRET_KEY"],
+                algorithm="HS256",
+            )
+            return jsonify({
+                "requires_2fa": True,
+                "pre_auth_token": pre_auth_token,
+            }), 200
 
         user.last_login = datetime.utcnow()
         _record_login_history(user.id, request.remote_addr, request.headers.get("User-Agent"))
@@ -106,6 +129,7 @@ def login():
             "Failed to login user", context={"error": str(e), "exception_type": type(e).__name__}
         )
         return jsonify({"error": "Failed to login user"}), 500
+
 
 
 @user_bp.route("/auth/logout", methods=["POST"])
@@ -124,7 +148,120 @@ def get_current_user(current_user):
     return jsonify(current_user.to_dict()), 200
 
 
+# ── 2FA Routes ─────────────────────────────────────────────────────────
+
+
+@user_bp.route("/auth/2fa/setup", methods=["POST"])
+@token_required
+def setup_2fa(current_user):
+    """Generate a TOTP secret and QR code PNG data URI for authenticator setup."""
+    secret = pyotp.random_base32()
+    current_user.two_factor_secret = secret
+    db.session.commit()
+
+    otpauth_url = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=current_user.email,
+        issuer_name="Muraai Contract Reminder",
+    )
+
+    img = qrcode.make(otpauth_url)
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    qr_code_base64 = "data:image/png;base64," + base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    return jsonify({
+        "secret": secret,
+        "otpauth_url": otpauth_url,
+        "qr_code": qr_code_base64,
+    }), 200
+
+
+@user_bp.route("/auth/2fa/verify", methods=["POST"])
+@token_required
+def verify_2fa(current_user):
+    """Verify 6-digit TOTP code and activate 2FA for the user account."""
+    data = request.get_json() or {}
+    code = (data.get("code") or "").strip()
+
+    if not current_user.two_factor_secret:
+        return jsonify({"error": "2FA setup has not been initiated. Call /auth/2fa/setup first."}), 400
+
+    totp = pyotp.TOTP(current_user.two_factor_secret)
+    if not totp.verify(code, valid_window=1):
+        return jsonify({"error": "Invalid verification code"}), 400
+
+    current_user.two_factor_enabled = True
+    db.session.commit()
+
+    logger.info("2FA enabled for user", context={"user_id": current_user.id})
+    return jsonify({"message": "Two-factor authentication enabled successfully"}), 200
+
+
+@user_bp.route("/auth/2fa/authenticate", methods=["POST"])
+@limiter.limit("5 per minute")
+def authenticate_2fa():
+    """Complete 2FA login by exchanging pre_auth_token and 6-digit code for a full JWT."""
+    data = request.get_json() or {}
+    pre_auth_token = data.get("pre_auth_token") or ""
+    code = (data.get("code") or "").strip()
+
+    if not pre_auth_token or not code:
+        return jsonify({"error": "pre_auth_token and code are required"}), 400
+
+    try:
+        payload = jwt.decode(
+            pre_auth_token,
+            current_app.config["SECRET_KEY"],
+            algorithms=["HS256"],
+        )
+        if not payload.get("pre_auth"):
+            return jsonify({"error": "Invalid pre-authentication token"}), 401
+        user_id = payload.get("user_id")
+    except Exception:
+        return jsonify({"error": "Expired or invalid pre-authentication token"}), 401
+
+    user = db.session.get(User, user_id)
+    if not user or not user.two_factor_enabled or not user.two_factor_secret:
+        return jsonify({"error": "2FA is not enabled for this user"}), 400
+
+    totp = pyotp.TOTP(user.two_factor_secret)
+    if not totp.verify(code, valid_window=1):
+        return jsonify({"error": "Invalid 2FA code"}), 401
+
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    logger.info("User completed 2FA login successfully", context={"user_id": user.id})
+    return jsonify({"user": user.to_dict(), "token": generate_token(user)}), 200
+
+
+@user_bp.route("/auth/2fa/disable", methods=["POST"])
+@token_required
+def disable_2fa(current_user):
+    """Disable 2FA for current user after validating password and code."""
+    data = request.get_json() or {}
+    password = data.get("password") or ""
+    code = (data.get("code") or "").strip()
+
+    if not current_user.check_password(password):
+        return jsonify({"error": "Invalid password"}), 401
+
+    if current_user.two_factor_secret:
+        totp = pyotp.TOTP(current_user.two_factor_secret)
+        if code and not totp.verify(code, valid_window=1):
+            return jsonify({"error": "Invalid 2FA code"}), 401
+
+    current_user.two_factor_enabled = False
+    current_user.two_factor_secret = None
+    db.session.commit()
+
+    logger.info("2FA disabled for user", context={"user_id": current_user.id})
+    return jsonify({"message": "Two-factor authentication disabled successfully"}), 200
+
+
+
 # ── Admin user management routes ────────────────────────────────────────
+
 
 
 def _admin_list_users(current_user):

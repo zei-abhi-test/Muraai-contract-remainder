@@ -25,22 +25,30 @@ _timeline_service = TimelineService()
 @token_required
 @require_resource("activity")
 def list_timeline(current_user):
-    """Query timeline entries.
-
-    Query parameters
-    ----------------
-    page          : int   (default 1)
-    per_page      : int   (default 20, max 100)
-    event_type    : str   — filter by event type
-    actor_id      : int   — filter by user
-    object_type   : str   — filter by object type (contract, invoice, …)
-    object_id     : int   — filter by object ID
-    aggregate_type: str   — filter by aggregate type
-    aggregate_id  : int   — filter by aggregate ID
-    search        : str   — full-text search across title, description, labels
-    from_date     : str   — ISO datetime lower bound
-    to_date       : str   — ISO datetime upper bound
+    """Query timeline entries (filtered, paginated, searchable).
+    ---
+    tags:
+      - Activity Timeline
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        default: 1
+      - name: per_page
+        in: query
+        type: integer
+        default: 20
+      - name: event_type
+        in: query
+        type: string
+      - name: search
+        in: query
+        type: string
+    responses:
+      200:
+        description: List of timeline entries
     """
+
     try:
         page = max(1, request.args.get("page", 1, type=int))
         per_page = min(100, max(1, request.args.get("per_page", 20, type=int)))

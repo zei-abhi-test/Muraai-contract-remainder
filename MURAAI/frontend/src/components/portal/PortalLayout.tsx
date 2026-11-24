@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutDashboard, FileText, FileSpreadsheet, ShoppingCart, LogOut, Menu, X } from 'lucide-react'
 
 import { useCustomerAuthStore } from '@/store/customerAuthStore'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const NAV_ITEMS = [
   { path: '/portal', label: 'Dashboard', icon: LayoutDashboard },
@@ -78,7 +79,50 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 p-4 md:p-6 pt-14 md:pt-6 max-w-5xl mx-auto w-full">
-        {children}
+        <ErrorBoundary
+          fallback={(error, reset) => (
+            <div
+              className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4"
+              role="alert"
+            >
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <span className="text-destructive text-xl" aria-hidden="true">⚠</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold mb-1">Something went wrong</h2>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  This page encountered an error. Your other portal pages are unaffected.
+                </p>
+              </div>
+              {error && (
+                <details className="text-left w-full max-w-sm">
+                  <summary className="text-xs font-medium text-muted-foreground cursor-pointer">
+                    Error details
+                  </summary>
+                  <pre className="mt-2 text-xs bg-muted p-3 rounded overflow-auto max-h-32">
+                    {error.toString()}
+                  </pre>
+                </details>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={reset}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90"
+                >
+                  Try again
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 border border-input rounded-lg text-sm hover:bg-accent"
+                >
+                  Reload page
+                </button>
+              </div>
+            </div>
+          )}
+        >
+          {children}
+        </ErrorBoundary>
       </main>
     </div>
   )
